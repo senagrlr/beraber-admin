@@ -1,0 +1,116 @@
+// src/pages/settings/BeraberEkibi.tsx
+import { useEffect, useState } from "react";
+import {
+  Card, CardContent, Typography,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box
+} from "@mui/material";
+import { db } from "../../services/firebase";
+import { collection, onSnapshot } from "firebase/firestore";
+
+type TeamMember = {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  order?: number;
+  active?: boolean;
+};
+
+export default function BeraberEkibi() {
+  const [rows, setRows] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    // Basit ve kurşun geçirmez listener: orderBy YOK, client-side sort VAR
+    const off = onSnapshot(
+      collection(db, "team_members"),
+      (snap) => {
+        if (!alive) return;
+
+        console.log("[BeraberEkibi] snapshot size:", snap.size);
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
+
+        // İstersen sadece aktifleri göster:
+        // const filtered = list.filter(x => x.active !== false);
+        const filtered = list;
+
+        // client-side sort: önce order (yoksa sonsuz), eşitse isme göre
+        filtered.sort((a, b) => {
+          const ao = a.order ?? Number.POSITIVE_INFINITY;
+          const bo = b.order ?? Number.POSITIVE_INFINITY;
+          if (ao !== bo) return ao - bo;
+          return (a.name ?? "").localeCompare(b.name ?? "", "tr");
+        });
+
+        setRows(filtered);
+        setError(null);
+        setLoading(false);
+      },
+      (err) => {
+        if (!alive) return;
+        console.error("[BeraberEkibi] onSnapshot ERROR:", err);
+        setError(
+          (err as any)?.code === "permission-denied"
+            ? "Ekip üyelerini okuma izniniz yok."
+            : (err as any)?.message || "Ekip listesi alınamadı."
+        );
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  const isEmpty = !loading && !error && rows.length === 0;
+
+  return (
+    <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+      <CardContent>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+          <Typography variant="h6" fontWeight={700}>Beraber Ekibi</Typography>
+          {!loading && !error && rows.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              Toplam {rows.length} kişi
+            </Typography>
+          )}
+        </Box>
+
+        {loading && <Typography color="text.secondary">Yükleniyor…</Typography>}
+        {!loading && error && <Typography color="error">{error}</Typography>}
+        {isEmpty && <Typography color="text.secondary">Henüz ekip üyesi eklenmemiş.</Typography>}
+
+        {!loading && !error && rows.length > 0 && (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>İsim</TableCell>
+                  <TableCell>İletişim</TableCell>
+                  <TableCell>Rol</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.map((m) => (
+                  <TableRow key={m.id} hover>
+                    <TableCell>{m.name || "—"}</TableCell>
+                    <TableCell>
+                      {(m.email || "—")}{m.email && m.phone ? " · " : ""}{m.phone || ""}
+                    </TableCell>
+                    <TableCell>{m.role || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

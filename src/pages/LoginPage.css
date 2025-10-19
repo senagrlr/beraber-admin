@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap&subset=latin-ext');
+
+body {
+  margin: 0;
+  padding: 0;
+  ffont-family: 'Nunito Sans', sans-serif;
+}
+
+.login-container {
+  display: flex;
+  height: 100vh;
+  background-color: #B60707;
+  color: #fff;
+}
+
+/* Sol K�s�m */
+.login-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.logo {
+  width: 400px;
+  height: 400px;
+  margin-bottom: 10px;
+}
+
+.brand {
+  font-size: 0px;
+  font-weight: 600;
+  color: #FFF6F6;
+}
+
+/* �izgi */
+.divider {
+  width: 3px;
+  background-color: rgba(255, 255, 255, 0.6);
+  height: 90%;
+  align-self: center;
+}
+
+/* Sa� K�s�m */
+.login-right {
+  flex: 1.2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-card {
+  background-color: #FFF6F6;
+  border-radius: 12px;
+  padding: 40px 50px;
+  width: 320px;
+  text-align: center;
+  color: #333;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.login-card h2 {
+  color: #B60707;
+  margin-bottom: 8px;
+}
+
+.login-card p {
+  color: #555;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.login-card button {
+  width: 100%;
+  background-color: #B60707;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.login-card button:hover {
+  background-color: #8e0505;
+}
+
+.forgot {
+  display: block;
+  margin-top: 15px;
+  color: #B60707;
+  text-decoration: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.forgot:hover {
+  text-decoration: underline;
+}
+
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding: 10px 40px 10px 10px; /* Sağda ikon için boşluk bırak */
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 40%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #B60707;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
