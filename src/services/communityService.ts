@@ -1,5 +1,4 @@
-// src/services/communityService.ts
-import { db, storage } from "./firebase"; // ← ÖNEMLİ: ./firebase olmalı
+import { db, storage } from "./firebase";
 import {
   addDoc,
   collection,
@@ -15,10 +14,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-
-/** Firestore koleksiyon adları (kurallarınla uyumlu) */
-const HIGHLIGHTS = "beraberde_bu_ay";     // Aylık görseller
-const POSTS = "topluluk_gonderileri";     // Topluluk gönderileri
+import { COLLECTIONS } from "../constants/firestore";
 
 /** Storage klasörleri */
 const HIGHLIGHTS_FOLDER = "community_highlights";
@@ -60,7 +56,7 @@ export async function setMonthlyHighlight(file: File) {
   const photoUrl = await getDownloadURL(storageRef);
 
   await setDoc(
-    doc(db, HIGHLIGHTS, key),
+    doc(db, COLLECTIONS.HIGHLIGHTS, key),
     {
       monthKey: key,
       photoUrl,
@@ -79,7 +75,7 @@ export async function updateMonthlyHighlightWithFile(monthKeyStr: string, file: 
   await uploadBytes(storageRef, file);
   const photoUrl = await getDownloadURL(storageRef);
 
-  await updateDoc(doc(db, HIGHLIGHTS, monthKeyStr), {
+  await updateDoc(doc(db, COLLECTIONS.HIGHLIGHTS, monthKeyStr), {
     photoUrl,
     updatedAt: serverTimestamp(),
   });
@@ -91,13 +87,13 @@ export async function updateMonthlyHighlightWithFile(monthKeyStr: string, file: 
 export async function updateMonthlyHighlight(monthKeyStr: string, payload: { photoUrl?: string }) {
   const toUpdate: Record<string, any> = { updatedAt: serverTimestamp() };
   if (typeof payload.photoUrl === "string") toUpdate.photoUrl = payload.photoUrl;
-  await updateDoc(doc(db, HIGHLIGHTS, monthKeyStr), toUpdate);
+  await updateDoc(doc(db, COLLECTIONS.HIGHLIGHTS, monthKeyStr), toUpdate);
   return { id: monthKeyStr, ...toUpdate };
 }
 
 /** En güncel N highlight (liste) */
 export async function fetchLatestHighlights(limitN = 10) {
-  const qy = query(collection(db, HIGHLIGHTS), orderBy("createdAt", "desc"), limit(limitN));
+  const qy = query(collection(db, COLLECTIONS.HIGHLIGHTS), orderBy("createdAt", "desc"), limit(limitN));
   const snap = await getDocs(qy);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as BeraberdeDoc[];
 }
@@ -110,7 +106,7 @@ export async function fetchLatestHighlight() {
 
 /** Realtime: son N highlight dinle */
 export function listenLatestHighlights(limitN = 10, cb: (rows: BeraberdeDoc[]) => void) {
-  const qy = query(collection(db, HIGHLIGHTS), orderBy("createdAt", "desc"), limit(limitN));
+  const qy = query(collection(db, COLLECTIONS.HIGHLIGHTS), orderBy("createdAt", "desc"), limit(limitN));
   return onSnapshot(
     qy,
     (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as BeraberdeDoc[]),
@@ -120,7 +116,7 @@ export function listenLatestHighlights(limitN = 10, cb: (rows: BeraberdeDoc[]) =
 
 /** Highlight sil */
 export async function deleteHighlight(monthKeyStr: string) {
-  await deleteDoc(doc(db, HIGHLIGHTS, monthKeyStr));
+  await deleteDoc(doc(db, COLLECTIONS.HIGHLIGHTS, monthKeyStr));
 }
 
 /* ──────────────────────────────
@@ -129,7 +125,7 @@ export async function deleteHighlight(monthKeyStr: string) {
 
 /** Yeni gönderi (foto **zorunlu**, metin opsiyonel) */
 export async function addCommunityPost({ text, file }: { text?: string; file: File }) {
-  const tmpRef = await addDoc(collection(db, POSTS), {
+  const tmpRef = await addDoc(collection(db, COLLECTIONS.COMMUNITY_POSTS), {
     text: text ?? "",
     photoUrl: "",
     status: "active",
@@ -149,9 +145,9 @@ export async function addCommunityPost({ text, file }: { text?: string; file: Fi
 }
 
 /** Gönderiyi güncelle:
- *  - Sadece metin değişecekse: { text }
- *  - Mevcut URL’yi elle değiştireceksen: { photoUrl }
- *  - Yeni dosya yüklenecekse: { file }
+ * - Sadece metin değişecekse: { text }
+ * - Mevcut URL’yi elle değiştireceksen: { photoUrl }
+ * - Yeni dosya yüklenecekse: { file }
  */
 export async function updateCommunityPost(
   id: string,
@@ -170,25 +166,25 @@ export async function updateCommunityPost(
   if (typeof payload.text === "string") toUpdate.text = payload.text;
   if (typeof nextPhotoUrl === "string") toUpdate.photoUrl = nextPhotoUrl;
 
-  await updateDoc(doc(db, POSTS, id), toUpdate);
+  await updateDoc(doc(db, COLLECTIONS.COMMUNITY_POSTS, id), toUpdate);
   return { id, ...toUpdate };
 }
 
 /** Gönderi sil */
 export async function deleteCommunityPost(id: string) {
-  await deleteDoc(doc(db, POSTS, id));
+  await deleteDoc(doc(db, COLLECTIONS.COMMUNITY_POSTS, id));
 }
 
 /** Son N gönderi (liste) */
 export async function fetchCommunityPosts(limitN = 10) {
-  const qy = query(collection(db, POSTS), orderBy("createdAt", "desc"), limit(limitN));
+  const qy = query(collection(db, COLLECTIONS.COMMUNITY_POSTS), orderBy("createdAt", "desc"), limit(limitN));
   const snap = await getDocs(qy);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ToplulukDoc[];
 }
 
 /** Realtime: son N gönderi dinle */
 export function listenCommunityPosts(limitN = 10, cb: (rows: ToplulukDoc[]) => void) {
-  const qy = query(collection(db, POSTS), orderBy("createdAt", "desc"), limit(limitN));
+  const qy = query(collection(db, COLLECTIONS.COMMUNITY_POSTS), orderBy("createdAt", "desc"), limit(limitN));
   return onSnapshot(
     qy,
     (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as ToplulukDoc[]),
@@ -218,3 +214,5 @@ export async function updateTopluluk(
   return updateCommunityPost(id, payload);
 }
 export const deleteTopluluk = deleteCommunityPost;
+
+

@@ -1,4 +1,3 @@
-// src/services/donationsService.ts
 import { db, storage } from "./firebase";
 import {
   collection,
@@ -21,6 +20,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { COLLECTIONS } from "../constants/firestore";
 
 /* --------------------------------------------------
   Tipler
@@ -43,7 +43,7 @@ export type DonationDoc = {
 const n = (v: any, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
 /* --------------------------------------------------
- 🟥 1) Bağış ekle
+  1) Bağış ekle
 -------------------------------------------------- */
 export async function addDonation({
   name,
@@ -56,7 +56,7 @@ export async function addDonation({
   amount: number | string;
   description?: string;
 }) {
-  const refDoc = await addDoc(collection(db, "donations"), {
+  const refDoc = await addDoc(collection(db, COLLECTIONS.DONATIONS), {
     name,
     category,
     amount: n(amount),
@@ -70,20 +70,20 @@ export async function addDonation({
 }
 
 /* --------------------------------------------------
- 🟥🆕 1.5) Bağış sil (detay sayfasındaki "Sil" butonu)
+  1.5) Bağış sil (detay sayfasındaki "Sil" butonu)
 -------------------------------------------------- */
 export async function deleteDonationById(id: string) {
-  await deleteDoc(doc(db, "donations", id));
+  await deleteDoc(doc(db, COLLECTIONS.DONATIONS, id));
 }
 // Eski adla kullananlar için alias:
 export const deleteDonation = deleteDonationById;
 
 /* --------------------------------------------------
- 🟨 2) Son 10 bağış – realtime
+  2) Son 10 bağış – realtime
 -------------------------------------------------- */
 export function listenRecentDonations(callback: (donations: DonationDoc[]) => void) {
   try {
-    const qy = query(collection(db, "donations"), orderBy("createdAt", "desc"), limit(10));
+    const qy = query(collection(db, COLLECTIONS.DONATIONS), orderBy("createdAt", "desc"), limit(10));
     const unsubscribe = onSnapshot(
       qy,
       (snapshot) => {
@@ -115,12 +115,12 @@ export function listenRecentDonations(callback: (donations: DonationDoc[]) => vo
 }
 
 /* --------------------------------------------------
- 🟩 3) Fotoğraf bekleyenler (index fallback’li)
+  3) Fotoğraf bekleyenler (index fallback’li)
 -------------------------------------------------- */
 export async function fetchPhotoPendingDonations() {
   try {
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       where("status", "==", "photo_pending"),
       orderBy("createdAt", "desc")
     );
@@ -129,7 +129,7 @@ export async function fetchPhotoPendingDonations() {
   } catch (err: any) {
     if (err?.code === "failed-precondition") {
       console.warn("[fetchPhotoPendingDonations] No index; falling back to client-side sort.");
-      const qy2 = query(collection(db, "donations"), where("status", "==", "photo_pending"));
+      const qy2 = query(collection(db, COLLECTIONS.DONATIONS), where("status", "==", "photo_pending"));
       const snap2 = await getDocs(qy2);
       const rows = snap2.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as DonationDoc[];
       rows.sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
@@ -141,13 +141,13 @@ export async function fetchPhotoPendingDonations() {
 }
 
 /* --------------------------------------------------
- 🟦 4) Bağış güncelle (UI'dan collected asla gönderme!)
+  4) Bağış güncelle (UI'dan collected asla gönderme!)
 -------------------------------------------------- */
 export async function updateDonation(id: string, data: Partial<DonationDoc>) {
   try {
     // collected alanını force-drop (UI güvenliği)
     const { collected, id: _id, createdAt, updatedAt, photoUpdatedAt, ...rest } = data as any;
-    const refDoc = doc(db, "donations", id);
+    const refDoc = doc(db, COLLECTIONS.DONATIONS, id);
     await updateDoc(refDoc, { ...rest, updatedAt: serverTimestamp() });
   } catch (err) {
     console.error("updateDonation error:", err);
@@ -156,7 +156,7 @@ export async function updateDonation(id: string, data: Partial<DonationDoc>) {
 }
 
 /* --------------------------------------------------
- 🟪 5) Fotoğraf yükle (status değiştirmez; sadece photoUrl yazar)
+  5) Fotoğraf yükle (status değiştirmez; sadece photoUrl yazar)
      Ayrıca photoUpdatedAt yazar → UI cache-bust için kullanabilir.
 -------------------------------------------------- */
 export async function uploadDonationPhoto(id: string, file: File) {
@@ -165,7 +165,7 @@ export async function uploadDonationPhoto(id: string, file: File) {
     await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(storageRef);
 
-    await updateDoc(doc(db, "donations", id), {
+    await updateDoc(doc(db, COLLECTIONS.DONATIONS, id), {
       photoUrl: downloadURL,
       photoUpdatedAt: serverTimestamp(), // ⬅️ eklendi
       updatedAt: serverTimestamp(),
@@ -179,13 +179,13 @@ export async function uploadDonationPhoto(id: string, file: File) {
 }
 
 /* --------------------------------------------------
- 🟫 6) Kategori oranları (son 30 gün)
+  6) Kategori oranları (son 30 gün)
 -------------------------------------------------- */
 export async function fetchCategoryRatios() {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       where("createdAt", ">=", Timestamp.fromDate(thirtyDaysAgo))
     );
@@ -194,7 +194,7 @@ export async function fetchCategoryRatios() {
   } catch (err: any) {
     if (err?.code === "failed-precondition") {
       console.warn("[fetchCategoryRatios] No index; falling back to status-only + client date filter.");
-      const snap2 = await getDocs(query(collection(db, "donations"), where("status", "==", "completed")));
+      const snap2 = await getDocs(query(collection(db, COLLECTIONS.DONATIONS), where("status", "==", "completed")));
       const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
       const filteredDocs = {
         docs: snap2.docs.filter((d) => {
@@ -231,12 +231,12 @@ function _buildCategoryRatiosFromSnapshot(snapshot: { docs: QueryDocumentSnapsho
 }
 
 /* --------------------------------------------------
- 🟧 7) Biten kampanyalar
+  7) Biten kampanyalar
 -------------------------------------------------- */
 export async function fetchCompletedCampaigns(limitN = 10) {
   try {
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc"),
       limit(limitN)
@@ -246,7 +246,7 @@ export async function fetchCompletedCampaigns(limitN = 10) {
   } catch (err: any) {
     if (err?.code === "failed-precondition") {
       console.warn("[fetchCompletedCampaigns] No index; falling back to status-only + client-side sort.");
-      const snap2 = await getDocs(query(collection(db, "donations"), where("status", "==", "completed")));
+      const snap2 = await getDocs(query(collection(db, COLLECTIONS.DONATIONS), where("status", "==", "completed")));
       const rows = snap2.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as DonationDoc[];
       rows.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
       return rows.slice(0, limitN);
@@ -257,11 +257,11 @@ export async function fetchCompletedCampaigns(limitN = 10) {
 }
 
 /* --------------------------------------------------
- 🟨 8) İlerleme güncelle
+  8) İlerleme güncelle
 -------------------------------------------------- */
 export async function updateDonationProgress(id: string, newCollected: number) {
   try {
-    const refDoc = doc(db, "donations", id);
+    const refDoc = doc(db, COLLECTIONS.DONATIONS, id);
     const current = await getDoc(refDoc);
     if (!current.exists()) return;
 
@@ -280,11 +280,11 @@ export async function updateDonationProgress(id: string, newCollected: number) {
 }
 
 /* --------------------------------------------------
- 🟪 9) Dashboard sayacı
+  9) Dashboard sayacı
 -------------------------------------------------- */
 export async function fetchDashboardCounts() {
   try {
-    const donationsRef = collection(db, "donations");
+    const donationsRef = collection(db, COLLECTIONS.DONATIONS);
     const qCompleted = query(donationsRef, where("status", "==", "completed"));
     const qActive = query(donationsRef, where("status", "==", "active"));
 
@@ -293,7 +293,7 @@ export async function fetchDashboardCounts() {
       getCountFromServer(qActive),
     ]);
 
-    const statsSnap = await getDoc(doc(db, "userStats", "global"));
+    const statsSnap = await getDoc(doc(db, COLLECTIONS.USER_STATS, "global"));
     const totalUsers = statsSnap.exists()
       ? Number((statsSnap.data() as any)?.totalUsers ?? 0)
       : 0;
@@ -310,14 +310,14 @@ export async function fetchDashboardCounts() {
 }
 
 /* --------------------------------------------------
- 🔎 10) İsimle arama (prefix)
+  10) İsimle arama (prefix)
 -------------------------------------------------- */
 export async function searchDonationsByName(prefix: string, limitN = 8) {
   const p = (prefix ?? "").trim();
   if (!p) return [];
   try {
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       orderBy("name"),
       startAt(p),
       endAt(p + "\uf8ff"),
@@ -330,7 +330,7 @@ export async function searchDonationsByName(prefix: string, limitN = 8) {
     });
   } catch (err: any) {
     console.warn("[searchDonationsByName] fallback:", err?.code || err);
-    const all = await getDocs(collection(db, "donations"));
+    const all = await getDocs(collection(db, COLLECTIONS.DONATIONS));
     const rows = all.docs
       .map((d) => ({ id: d.id, ...(d.data() as any) }))
       .filter((x: any) =>
@@ -343,7 +343,7 @@ export async function searchDonationsByName(prefix: string, limitN = 8) {
 }
 
 /* --------------------------------------------------
- 🔔 11) Son tamamlanan bağışlar — realtime
+  11) Son tamamlanan bağışlar — realtime
 -------------------------------------------------- */
 export function listenRecentCompletedDonations(
   limitN = 10,
@@ -351,7 +351,7 @@ export function listenRecentCompletedDonations(
 ) {
   try {
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc"),
       limit(limitN)
@@ -375,11 +375,11 @@ export function listenRecentCompletedDonations(
 }
 
 /* --------------------------------------------------
- 🔍 12) Tek bağış getir/dinle (detay)
+  12) Tek bağış getir/dinle (detay)
 -------------------------------------------------- */
 export async function getDonationById(id: string): Promise<DonationDoc | null> {
   try {
-    const s = await getDoc(doc(db, "donations", id));
+    const s = await getDoc(doc(db, COLLECTIONS.DONATIONS, id));
     if (!s.exists()) return null;
     const data = s.data() as any;
     return {
@@ -404,7 +404,7 @@ export async function getDonationById(id: string): Promise<DonationDoc | null> {
 export function listenDonationById(id: string, cb: (doc: DonationDoc | null) => void) {
   try {
     const unsub = onSnapshot(
-      doc(db, "donations", id),
+      doc(db, COLLECTIONS.DONATIONS, id),
       (s) => {
         if (!s.exists()) return cb(null);
         const data = s.data() as any;
@@ -432,7 +432,7 @@ export function listenDonationById(id: string, cb: (doc: DonationDoc | null) => 
 }
 
 /* --------------------------------------------------
- 📊 13) RAPORLAR — Aylık toplamlar / MTD / YTD
+  13) RAPORLAR — Aylık toplamlar / MTD / YTD
      (tamamlanan kayıtlar; collected üstünden)
 -------------------------------------------------- */
 
@@ -449,7 +449,7 @@ export async function fetchMonthlyDonationSums(
 
   try {
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       where("createdAt", ">=", Timestamp.fromDate(jan1)),
       where("createdAt", "<", Timestamp.fromDate(jan1Next))
@@ -467,7 +467,7 @@ export async function fetchMonthlyDonationSums(
     if (err?.code !== "failed-precondition") {
       console.warn("[fetchMonthlyDonationSums] fallback:", err?.code || err);
     }
-    const snap2 = await getDocs(query(collection(db, "donations"), where("status", "==", "completed")));
+    const snap2 = await getDocs(query(collection(db, COLLECTIONS.DONATIONS), where("status", "==", "completed")));
     const start = jan1.getTime();
     const end = jan1Next.getTime();
     snap2.docs.forEach((d) => {
@@ -491,7 +491,7 @@ export async function fetchMonthToDateTotal(): Promise<number> {
 
   try {
     const qy = query(
-      collection(db, "donations"),
+      collection(db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       where("createdAt", ">=", Timestamp.fromDate(monthStart)),
       where("createdAt", "<=", Timestamp.fromDate(now))
@@ -501,7 +501,7 @@ export async function fetchMonthToDateTotal(): Promise<number> {
     snap.docs.forEach((d) => (sum += n((d.data() as any)?.collected)));
     return sum;
   } catch (_e) {
-    const snap2 = await getDocs(query(collection(db, "donations"), where("status", "==", "completed")));
+    const snap2 = await getDocs(query(collection(db, COLLECTIONS.DONATIONS), where("status", "==", "completed")));
     let sum = 0;
     const start = monthStart.getTime();
     const end = now.getTime();

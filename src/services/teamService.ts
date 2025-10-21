@@ -1,4 +1,3 @@
-// src/services/teamService.ts
 import { db } from "./firebase";
 import {
   collection,
@@ -10,6 +9,7 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
+import { COLLECTIONS } from "../constants/firestore";
 
 export type TeamMember = {
   id?: string;          // Firestore doc id (UID)
@@ -26,11 +26,11 @@ export type TeamMember = {
 /** Ekip listesini sırayla getirir; index yoksa client-side sıralar. */
 export async function fetchTeamMembers(): Promise<TeamMember[]> {
   try {
-    const qy = query(collection(db, "team_members"), orderBy("order", "asc"));
+    const qy = query(collection(db, COLLECTIONS.TEAM_MEMBERS), orderBy("order", "asc"));
     const snap = await getDocs(qy);
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
   } catch {
-    const snap = await getDocs(collection(db, "team_members"));
+    const snap = await getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS));
     const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
     rows.sort(
       (a, b) =>
@@ -46,7 +46,7 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
  */
 export async function getTeamMemberByUid(uid: string): Promise<TeamMember | null> {
   if (!uid) return null;
-  const ref = doc(db, "team_members", uid);
+  const ref = doc(db, COLLECTIONS.TEAM_MEMBERS, uid);
   const s = await getDoc(ref);
   if (!s.exists()) return null;
   return { id: s.id, ...(s.data() as any) } as TeamMember;
@@ -75,7 +75,7 @@ export async function isEmailAllowed(emailRaw: string): Promise<boolean> {
   // 1) emailLower ile kontrol
   try {
     const q1 = query(
-      collection(db, "team_members"),
+      collection(db, COLLECTIONS.TEAM_MEMBERS),
       where("emailLower", "==", normalized),
       limit(1)
     );
@@ -91,7 +91,7 @@ export async function isEmailAllowed(emailRaw: string): Promise<boolean> {
   // 2) email ile kontrol
   try {
     const q2 = query(
-      collection(db, "team_members"),
+      collection(db, COLLECTIONS.TEAM_MEMBERS),
       where("email", "==", raw),
       limit(1)
     );
@@ -106,7 +106,7 @@ export async function isEmailAllowed(emailRaw: string): Promise<boolean> {
 
   // 3) full-scan fallback
   try {
-    const snap = await getDocs(collection(db, "team_members"));
+    const snap = await getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS));
     for (const d of snap.docs) {
       const m = d.data() as TeamMember;
       const stored = (m.emailLower ?? m.email ?? "")
@@ -126,7 +126,7 @@ export async function isEmailAllowed(emailRaw: string): Promise<boolean> {
 
 /** Debug: tüm team_members’ı logla */
 export async function debugListTeamMembers(): Promise<void> {
-  const snap = await getDocs(collection(db, "team_members"));
+  const snap = await getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS));
   console.log("[debugListTeamMembers] count:", snap.size);
   for (const d of snap.docs) {
     console.log(" -", d.id, d.data());
@@ -139,7 +139,7 @@ export async function getTeamMemberByEmail(email: string): Promise<TeamMember | 
   const normalized = raw.toLowerCase();
   try {
     const q1 = query(
-      collection(db, "team_members"),
+      collection(db, COLLECTIONS.TEAM_MEMBERS),
       where("emailLower", "==", normalized),
       limit(1)
     );
@@ -147,14 +147,14 @@ export async function getTeamMemberByEmail(email: string): Promise<TeamMember | 
     if (s1.size > 0) return { id: s1.docs[0].id, ...(s1.docs[0].data() as any) } as TeamMember;
 
     const q2 = query(
-      collection(db, "team_members"),
+      collection(db, COLLECTIONS.TEAM_MEMBERS),
       where("email", "==", raw),
       limit(1)
     );
     const s2 = await getDocs(q2);
     if (s2.size > 0) return { id: s2.docs[0].id, ...(s2.docs[0].data() as any) } as TeamMember;
 
-    const all = await getDocs(collection(db, "team_members"));
+    const all = await getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS));
     for (const d of all.docs) {
       const m = d.data() as TeamMember;
       const stored = (m.emailLower ?? m.email ?? "")

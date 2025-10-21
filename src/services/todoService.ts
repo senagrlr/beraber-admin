@@ -1,4 +1,3 @@
-// src/services/todoService.ts
 import { db, auth } from "../services/firebase";
 import type { Todo } from "../types/Todo";
 import {
@@ -13,9 +12,10 @@ import {
   Timestamp,
   where,
 } from "firebase/firestore";
+import { COLLECTIONS } from "../constants/firestore";
 
 /** Firestore koleksiyon referansı */
-const todosCol = collection(db, "todos");
+const todosCol = collection(db, COLLECTIONS.TODOS);
 
 /** Firestore -> Todo map helper */
 function mapTodo(snap: any): Todo {
@@ -50,7 +50,7 @@ export async function addTodo(text: string): Promise<void> {
  * Görevi tamamla / geri al
  */
 export async function toggleTodo(todo: Todo): Promise<void> {
-  const ref = doc(db, "todos", todo.id);
+  const ref = doc(db, COLLECTIONS.TODOS, todo.id);
   const willBeDone = !todo.done;
 
   await updateDoc(ref, {
@@ -63,9 +63,9 @@ export async function toggleTodo(todo: Todo): Promise<void> {
  * Aktif görevleri gerçek zamanlı izle (yalnızca currentUser’a ait)
  *
  * 🔹 Kompozit index istememek için Firestore'da SIRALAMA YAPMIYORUZ.
- *     where('createdBy'=='uid') + limit(100) ile çekip
- *     client-side DESC sıralıyoruz. Böylece
- *     “The query requires an index” uyarısı kesilir.
+ * where('createdBy'=='uid') + limit(100) ile çekip
+ * client-side DESC sıralıyoruz. Böylece
+ * “The query requires an index” uyarısı kesilir.
  *
  * 🔹 useEffect içinde aç → return () => unsub() ile kapat.
  */

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import { db } from "../../services/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { COLLECTIONS } from "../../constants/firestore";
 
 export default function Topluluk() {
   const [text, setText] = useState("");
@@ -15,7 +16,7 @@ export default function Topluluk() {
     }
     try {
       setSaving(true);
-      await addDoc(collection(db, "topluluk_gonderileri"), {
+      await addDoc(collection(db, COLLECTIONS.COMMUNITY_POSTS), {
         text: text.trim(),
         photoUrl: photoUrl.trim(),     // doğrudan URL’yi yazıyoruz
         status: "active",
@@ -116,3 +117,4 @@ export default function Topluluk() {
     </Box>
   );
 }
+

@@ -2,15 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\src",
+    "\\src\\assets",
+    "\\src\\components",
+    "\\src\\constants",
+    "\\src\\data",
+    "\\src\\layouts",
     "\\src\\pages",
-    "\\src\\pages\\Community",
-    "\\src\\pages\\Dashboard",
-    "\\src\\pages\\Donations",
-    "\\src\\pages\\Notifications",
-    "\\src\\pages\\Reports",
     "\\src\\pages\\Settings",
     "\\src\\services"
   ],
-  "SelectedNode": "\\index.html",
+  "SelectedNode": "\\src\\constants",
   "PreviewInSolutionExplorer": false
 }

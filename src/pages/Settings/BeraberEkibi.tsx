@@ -1,4 +1,3 @@
-// src/pages/settings/BeraberEkibi.tsx
 import { useEffect, useState } from "react";
 import {
   Card, CardContent, Typography,
@@ -6,6 +5,7 @@ import {
 } from "@mui/material";
 import { db } from "../../services/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import { COLLECTIONS } from "../../constants/firestore";
 
 type TeamMember = {
   id: string;
@@ -27,7 +27,7 @@ export default function BeraberEkibi() {
 
     // Basit ve kurşun geçirmez listener: orderBy YOK, client-side sort VAR
     const off = onSnapshot(
-      collection(db, "team_members"),
+      collection(db, COLLECTIONS.TEAM_MEMBERS),
       (snap) => {
         if (!alive) return;
 

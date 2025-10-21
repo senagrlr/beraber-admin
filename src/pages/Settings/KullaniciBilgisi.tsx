@@ -1,9 +1,9 @@
-// src/pages/settings/KullaniciBilgisi.tsx
 import { useEffect, useState } from "react";
 import { Card, CardContent, Typography, Box, Button } from "@mui/material";
 import { auth, db } from "../../services/firebase";
 import { onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail } from "firebase/auth";
 import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import { COLLECTIONS } from "../../constants/firestore";
 
 type TeamMember = {
   id: string;
@@ -45,7 +45,7 @@ export default function KullaniciBilgisi() {
 
         // 1) team_members içinde email eşleşeni çek
         const qy = query(
-          collection(db, "team_members"),
+          collection(db, COLLECTIONS.TEAM_MEMBERS),
           where("email", "==", u.email),
           limit(1)
         );

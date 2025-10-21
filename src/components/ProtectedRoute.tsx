@@ -1,4 +1,3 @@
-// src/components/ProtectedRoute.tsx
 import { ReactNode, useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -14,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { Box, CircularProgress } from "@mui/material";
+import { COLLECTIONS } from "../constants/firestore";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -61,7 +61,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     if (email) {
       try {
         const qy = query(
-          collection(db, "team_members"),
+          collection(db, COLLECTIONS.TEAM_MEMBERS),
           where("emailLower", "==", email),
           where("active", "==", true),
           limit(1)
@@ -75,7 +75,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
     // 2) users/{uid}.role === 'admin'
     try {
-      const us = await getDoc(doc(db, "users", u.uid));
+      const us = await getDoc(doc(db, COLLECTIONS.USERS, u.uid));
       const role = us.exists() ? (us.data() as any)?.role : null;
       if (role === "admin") return true;
     } catch {
@@ -114,4 +114,3 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   return <>{children}</>;
 }
-

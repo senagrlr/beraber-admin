@@ -16,9 +16,7 @@ import {
   onSnapshot,
   getDoc,
 } from "firebase/firestore";
-
-const NOTIFICATIONS = "notifications";
-const DONATIONS = "donations";
+import { COLLECTIONS } from "../constants/firestore";
 
 /** 🔔 UI'ye haber vermek için basit bir event bus */
 export const notificationsBus = new EventTarget();
@@ -43,7 +41,7 @@ export interface NotificationDoc {
 -------------------------------------------------- */
 export async function fetchCampaignOptions() {
   try {
-    const qy = query(collection(db, DONATIONS), orderBy("createdAt", "desc"));
+    const qy = query(collection(db, COLLECTIONS.DONATIONS), orderBy("createdAt", "desc"));
     const snap = await getDocs(qy);
     return snap.docs.map((d) => {
       const data = d.data() as any;
@@ -69,7 +67,7 @@ export async function createNotification(params: {
   scheduledAt: Date; // JS Date
 }) {
   try {
-    const ref = await addDoc(collection(db, NOTIFICATIONS), {
+    const ref = await addDoc(collection(db, COLLECTIONS.NOTIFICATIONS), {
       title: params.title,
       body: params.body,
       target: params.target,
@@ -96,7 +94,7 @@ export async function createNotification(params: {
 -------------------------------------------------- */
 export async function getNotificationById(id: string): Promise<NotificationDoc | null> {
   try {
-    const snap = await getDoc(doc(db, NOTIFICATIONS, id));
+    const snap = await getDoc(doc(db, COLLECTIONS.NOTIFICATIONS, id));
     if (!snap.exists()) return null;
     return { id: snap.id, ...(snap.data() as any) } as NotificationDoc;
   } catch (err) {
@@ -116,8 +114,8 @@ export async function fetchNotificationsPage(
   try {
     const base = [orderBy("scheduledAt", "desc"), limit(pageSize)] as const;
     const qy = last
-      ? query(collection(db, NOTIFICATIONS), ...base, startAfter(last))
-      : query(collection(db, NOTIFICATIONS), ...base);
+      ? query(collection(db, COLLECTIONS.NOTIFICATIONS), ...base, startAfter(last))
+      : query(collection(db, COLLECTIONS.NOTIFICATIONS), ...base);
 
     const snap = await getDocs(qy);
 
@@ -148,7 +146,7 @@ export function listenNotificationsRealtime(
 ): () => void {
   try {
     const qy = query(
-      collection(db, NOTIFICATIONS),
+      collection(db, COLLECTIONS.NOTIFICATIONS),
       orderBy("scheduledAt", "desc"),
       limit(limitN)
     );
@@ -165,7 +163,7 @@ export function listenNotificationsRealtime(
         console.warn("[listenNotificationsRealtime] ordered listener failed:", err);
         // 🔁 Fallback: düz koleksiyon dinle + client-side sort
         const unsubFallback = onSnapshot(
-          collection(db, NOTIFICATIONS),
+          collection(db, COLLECTIONS.NOTIFICATIONS),
           (snap2) => {
             const arr = snap2.docs
               .map((d) => ({ id: d.id, ...(d.data() as any) }))
@@ -200,7 +198,7 @@ export async function markNotificationStatus(
   status: NotificationDoc["status"]
 ) {
   try {
-    await updateDoc(doc(db, NOTIFICATIONS, id), {
+    await updateDoc(doc(db, COLLECTIONS.NOTIFICATIONS, id), {
       status,
       updatedAt: serverTimestamp(),
     });
@@ -218,7 +216,7 @@ export async function updateNotification(
   patch: Partial<Pick<NotificationDoc, "title" | "body" | "target">>
 ) {
   try {
-    const ref = doc(db, NOTIFICATIONS, id);
+    const ref = doc(db, COLLECTIONS.NOTIFICATIONS, id);
     await updateDoc(ref, { ...patch, updatedAt: serverTimestamp() });
   } catch (err) {
     console.error("[updateNotification] ERROR:", err);
@@ -231,7 +229,7 @@ export async function updateNotification(
 -------------------------------------------------- */
 export async function deleteNotificationById(id: string) {
   try {
-    await deleteDoc(doc(db, NOTIFICATIONS, id));
+    await deleteDoc(doc(db, COLLECTIONS.NOTIFICATIONS, id));
   } catch (err) {
     console.error("[deleteNotificationById] ERROR:", err);
     throw err;

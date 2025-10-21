@@ -6,8 +6,9 @@ import {
   where,
   Timestamp,
 } from "firebase/firestore";
+import { COLLECTIONS } from "../constants/firestore";
 
-const usersCol = collection(db, "users");
+const usersCol = collection(db, COLLECTIONS.USERS);
 
 // 🔹 Ay başlangıcı ve bitişi hesapla
 function monthRange(year: number, monthIndex: number) {

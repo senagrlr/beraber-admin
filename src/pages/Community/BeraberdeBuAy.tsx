@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import { db } from "../../services/firebase";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { COLLECTIONS } from "../../constants/firestore";
 
 const monthKey = () => {
   const d = new Date();
@@ -22,7 +23,7 @@ export default function BeraberdeBuAy() {
       setSaving(true);
       const key = monthKey();
       await setDoc(
-        doc(db, "beraberde_bu_ay", key),
+        doc(db, COLLECTIONS.HIGHLIGHTS, key),
         {
           monthKey: key,
           photoUrl: trimmed,

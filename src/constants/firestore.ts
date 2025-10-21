@@ -1,0 +1,10 @@
+export const COLLECTIONS = {
+  DONATIONS: 'donations',
+  NOTIFICATIONS: 'notifications',
+  TEAM_MEMBERS: 'team_members',
+  USERS: 'users',
+  USER_STATS: 'userStats',
+  TODOS: 'todos',
+  HIGHLIGHTS: 'beraberde_bu_ay',
+  COMMUNITY_POSTS: 'topluluk_gonderileri',
+};
