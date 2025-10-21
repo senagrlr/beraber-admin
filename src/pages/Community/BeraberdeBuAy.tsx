@@ -1,22 +1,25 @@
+// src\pages\Community\BeraberdeBuAy.tsx
 import { useState } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import { db } from "../../services/firebase";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { COLLECTIONS } from "../../constants/firestore";
+import { useNotifier } from "../../contexts/NotificationContext";
 
 const monthKey = () => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
 export default function BeraberdeBuAy() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const notifier = useNotifier();
 
   const onSave = async () => {
     const trimmed = photoUrl.trim();
     if (!trimmed) {
-      alert("Fotoğraf URL'si gerekli.");
+      notifier.showWarning("Fotoğraf URL'si gerekli.");
       return;
     }
     try {
@@ -33,13 +36,11 @@ export default function BeraberdeBuAy() {
         },
         { merge: true }
       );
-
-      // Topluluk’ta olduğu gibi: input’u ve preview’u sıfırla
       setPhotoUrl("");
-      alert("Kaydedildi.");
+      notifier.showSuccess("Kaydedildi.");
     } catch (e) {
       console.error(e);
-      alert("Kaydedilemedi.");
+      notifier.showError("Kaydedilemedi.");
     } finally {
       setSaving(false);
     }

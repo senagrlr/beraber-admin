@@ -1,4 +1,4 @@
-// src/pages/Community/CommunityPage.tsx  (veya index.tsx)
+// src/pages/Community/CommunityPage.tsx  
 import { Box, Grid, Typography } from "@mui/material";
 import BeraberdeBuAy from "./BeraberdeBuAy";
 import Topluluk from "./Topluluk";

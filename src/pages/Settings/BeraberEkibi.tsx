@@ -1,3 +1,4 @@
+// src\pages\Settings\BeraberEkibi.tsx
 import { useEffect, useState } from "react";
 import {
   Card, CardContent, Typography,

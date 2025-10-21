@@ -1,3 +1,4 @@
+// src\constants\firestore.ts
 export const COLLECTIONS = {
   DONATIONS: 'donations',
   NOTIFICATIONS: 'notifications',

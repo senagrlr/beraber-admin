@@ -1,5 +1,5 @@
 // src/layout/Sidebar.tsx
-// src/layouts/Sidebar.tsx
+
 import { Box } from "@mui/material";
 import { COLORS, navItems } from "./ui";
 import logo from "../assets/beraber_logo2.png";

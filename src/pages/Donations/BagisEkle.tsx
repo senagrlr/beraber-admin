@@ -1,9 +1,11 @@
+// src\pages\Donations\BagisEkle.tsx
 import { useState } from "react";
 import {
   Card, CardContent, Typography, Box,
   TextField, Button, MenuItem, Select, InputLabel, FormControl
 } from "@mui/material";
 import { addDonation, updateDonation } from "../../services/donationsService";
+import { useNotifier } from "../../contexts/NotificationContext";
 
 const CATEGORIES = [
   "Eğitim Yardımı",
@@ -22,25 +24,23 @@ export default function BagisEkle() {
   const [amount, setAmount] = useState("");
   const [text, setText] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
-
   const [saving, setSaving] = useState(false);
+  const notifier = useNotifier();
 
   const handleAddDonation = async () => {
     if (!donationName || !category || !amount) {
-      alert("Tüm alanları doldur!");
+      notifier.showWarning("Lütfen tüm zorunlu alanları doldurun.");
       return;
     }
 
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      alert("Miktar geçerli bir sayı olmalı.");
+      notifier.showWarning("Miktar geçerli bir sayı olmalıdır.");
       return;
     }
 
     try {
       setSaving(true);
-
-      // 1) Bağışı oluştur
       const { id } = await addDonation({
         name: donationName.trim(),
         category,
@@ -48,23 +48,21 @@ export default function BagisEkle() {
         description: text.trim(),
       });
 
-      // 2) Foto URL girilmişse dokümana yaz
       const cleanUrl = photoUrl.trim();
       if (cleanUrl) {
         await updateDonation(id, { photoUrl: cleanUrl });
       }
 
-      // 3) Formu sıfırla
       setDonationName("");
       setCategory("");
       setAmount("");
       setText("");
       setPhotoUrl("");
 
-      alert("Bağış başarıyla eklendi!");
+      notifier.showSuccess("Bağış başarıyla eklendi!");
     } catch (err) {
       console.error("Bağış ekleme hatası:", err);
-      alert("Bağış eklenemedi.");
+      notifier.showError("Bağış eklenirken bir hata oluştu.");
     } finally {
       setSaving(false);
     }
@@ -193,3 +191,4 @@ export default function BagisEkle() {
     </Card>
   );
 }
+

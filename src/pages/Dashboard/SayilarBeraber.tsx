@@ -1,3 +1,4 @@
+// src\pages\Dashboard\SayilarBeraber.tsx
 import { Card, CardContent, Typography, Grid, Box } from "@mui/material";
 import { useEffect, useState } from "react";
 import { fetchDashboardCounts } from "../../services/donationsService";

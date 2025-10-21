@@ -1,3 +1,4 @@
+// src\pages\Dashboard\BagisKategoriOrani.tsx
 import { Card, CardContent, Typography, Box } from "@mui/material";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useEffect, useState } from "react";

@@ -28,6 +28,7 @@ import {
   deleteDonationById,
   type DonationDoc,
 } from "../../services/donationsService";
+import { useNotifier } from "../../contexts/NotificationContext";
 
 const CATEGORIES = [
   "Eğitim Yardımı",
@@ -46,6 +47,7 @@ const fmtMoney = (n: number) =>
 export default function DonationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const notifier = useNotifier();
 
   const [doc, setDoc] = useState<DonationDoc | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,9 @@ export default function DonationDetail() {
     })();
 
     return () => {
-      try { unsub?.(); } catch {}
+      try {
+        unsub?.();
+      } catch {}
     };
   }, [id]);
 
@@ -120,20 +124,25 @@ export default function DonationDetail() {
         description: editDescription.trim(),
       });
       setOpenEdit(false);
+      notifier.showSuccess("Bağış bilgileri güncellendi.");
     } catch {
-      alert("Güncelleme başarısız.");
+      notifier.showError("Güncelleme başarısız.");
     }
   };
 
   const handleDelete = async () => {
     if (!id) return;
-    const ok = confirm("Bu bağışı silmek istediğine emin misin? Bu işlem geri alınamaz.");
+    const ok = await notifier.showConfirm(
+      "Bağışı Sil",
+      "Bu bağışı silmek istediğine emin misin? Bu işlem geri alınamaz."
+    );
     if (!ok) return;
     try {
       await deleteDonationById(id);
+      notifier.showSuccess("Bağış silindi.");
       navigate("/donations");
     } catch {
-      alert("Silme işlemi başarısız.");
+      notifier.showError("Silme işlemi başarısız.");
     }
   };
 
@@ -150,12 +159,13 @@ export default function DonationDetail() {
         const url = await uploadDonationPhoto(id, file);
 
         // 2) Snapshot gelmesini beklemeden hemen UI’da göster
-        setDoc((prev) => (prev ? { ...prev, photoUrl: url } as DonationDoc : prev));
+        setDoc((prev) => (prev ? ({ ...prev, photoUrl: url } as DonationDoc) : prev));
         setImgErr("");
         setCacheBust(Date.now());
+        notifier.showSuccess("Fotoğraf yüklendi.");
       } catch (err) {
         console.error("[handleUploadPhoto] upload error:", err);
-        alert("Fotoğraf yüklenemedi.");
+        notifier.showError("Fotoğraf yüklenemedi.");
       }
     };
     input.click();
@@ -178,9 +188,7 @@ export default function DonationDetail() {
   }
 
   const rawPhotoUrl = typeof doc.photoUrl === "string" && doc.photoUrl.trim() ? doc.photoUrl.trim() : "";
-  const photoUrl = rawPhotoUrl
-    ? `${rawPhotoUrl}${rawPhotoUrl.includes("?") ? "&" : "?"}cb=${cacheBust || 0}`
-    : "";
+  const photoUrl = rawPhotoUrl ? `${rawPhotoUrl}${rawPhotoUrl.includes("?") ? "&" : "?"}cb=${cacheBust || 0}` : "";
 
   return (
     <Box sx={{ p: 3 }}>
@@ -259,7 +267,9 @@ export default function DonationDetail() {
                       console.error("[DonationDetail] IMG LOAD ERROR:", {
                         src: (e.currentTarget as HTMLImageElement).src,
                       });
-                      setImgErr("Görsel yüklenemedi. Storage kuralları veya URL token’ı kontrol edin.");
+                      setImgErr(
+                        "Görsel yüklenemedi. (URL token’ı, Storage kuralları veya CORS’u kontrol edin.)"
+                      );
                     }}
                   />
                 ) : (

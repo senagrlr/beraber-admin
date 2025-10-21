@@ -1,3 +1,4 @@
+// src\services\communityService.ts
 import { db, storage } from "./firebase";
 import {
   addDoc,

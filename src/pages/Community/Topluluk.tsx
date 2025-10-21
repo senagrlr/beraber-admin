@@ -1,32 +1,36 @@
+// src\pages\Community\Topluluk.tsx
 import { useState } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import { db } from "../../services/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { COLLECTIONS } from "../../constants/firestore";
+import { useNotifier } from "../../contexts/NotificationContext";
 
 export default function Topluluk() {
   const [text, setText] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const notifier = useNotifier();
 
   const onSave = async () => {
     if (!photoUrl.trim()) {
-      alert("Fotoğraf URL'si gerekli.");
+      notifier.showWarning("Fotoğraf URL'si gerekli.");
       return;
     }
     try {
       setSaving(true);
       await addDoc(collection(db, COLLECTIONS.COMMUNITY_POSTS), {
         text: text.trim(),
-        photoUrl: photoUrl.trim(),     // doğrudan URL’yi yazıyoruz
+        photoUrl: photoUrl.trim(),
         status: "active",
         createdAt: serverTimestamp(),
       });
       setText("");
       setPhotoUrl("");
+      notifier.showSuccess("Gönderi başarıyla yayınlandı!");
     } catch (e) {
       console.error(e);
-      alert("Gönderi eklenemedi.");
+      notifier.showError("Gönderi eklenirken bir hata oluştu.");
     } finally {
       setSaving(false);
     }

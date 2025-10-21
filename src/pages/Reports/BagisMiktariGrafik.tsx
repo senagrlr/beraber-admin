@@ -1,3 +1,4 @@
+// src\pages\Reports\BagisMiktariGrafik.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, Typography, Box, Select, MenuItem, CircularProgress, Alert } from "@mui/material";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";

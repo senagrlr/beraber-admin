@@ -1,9 +1,11 @@
+// src\pages\Settings\KullaniciBilgisi.tsx
 import { useEffect, useState } from "react";
 import { Card, CardContent, Typography, Box, Button } from "@mui/material";
 import { auth, db } from "../../services/firebase";
 import { onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail } from "firebase/auth";
 import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { COLLECTIONS } from "../../constants/firestore";
+import { useNotifier } from "../../contexts/NotificationContext";
 
 type TeamMember = {
   id: string;
@@ -18,6 +20,7 @@ export default function KullaniciBilgisi() {
   const [member, setMember] = useState<TeamMember | null>(null);
   const [roleText, setRoleText] = useState<string>("—");
   const [loading, setLoading] = useState<boolean>(true);
+  const notifier = useNotifier();
 
   // Auth dinle (ilk render'da user null olabilir)
   useEffect(() => {
@@ -72,7 +75,6 @@ export default function KullaniciBilgisi() {
           setMember(null);
           setRoleText("—");
         }
-        // sessiz geç; UI bozulmasın
         console.warn("[KullaniciBilgisi] fetch error:", e);
       } finally {
         if (alive) setLoading(false);
@@ -86,8 +88,12 @@ export default function KullaniciBilgisi() {
 
   const onSendReset = async () => {
     if (!userState?.email) return;
-    await sendPasswordResetEmail(auth, userState.email /* , { url: 'https://app.senin-domainin.com' } */);
-    alert("Şifre sıfırlama bağlantısı e-posta adresine gönderildi.");
+    try {
+        await sendPasswordResetEmail(auth, userState.email);
+        notifier.showSuccess("Şifre sıfırlama bağlantısı e-posta adresine gönderildi.");
+    } catch {
+        notifier.showError("Şifre sıfırlama bağlantısı gönderilemedi.");
+    }
   };
 
   const displayName =
@@ -157,3 +163,4 @@ export default function KullaniciBilgisi() {
     </Card>
   );
 }
+

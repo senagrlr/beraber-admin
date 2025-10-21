@@ -1,4 +1,4 @@
-// src/pages/Community/ToplulukEnSon.tsx
+// src\pages\Community\ToplulukEnSon.tsx
 import { useEffect, useState } from "react";
 import {
   Card, CardContent, Typography, Box, IconButton, Tooltip,
@@ -12,16 +12,18 @@ import {
   deleteTopluluk,
   type ToplulukDoc,
 } from "../../services/communityService";
+import { useNotifier } from "../../contexts/NotificationContext";
 
 export default function ToplulukEnSon() {
   const [rows, setRows] = useState<ToplulukDoc[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // edit
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [editUrl, setEditUrl] = useState("");
+
+  const notifier = useNotifier();
 
   useEffect(() => {
     const unsub = listenLastTopluluk(10, (r) => {
@@ -40,16 +42,27 @@ export default function ToplulukEnSon() {
 
   const onSave = async () => {
     if (!editId) return;
-    await updateTopluluk(editId, {
-      text: editText.trim() || undefined,
-      photoUrl: editUrl.trim() || undefined,
-    });
-    setOpen(false);
+    try {
+      await updateTopluluk(editId, {
+        text: editText.trim() || undefined,
+        photoUrl: editUrl.trim() || undefined,
+      });
+      setOpen(false);
+      notifier.showSuccess("Gönderi güncellendi.");
+    } catch {
+      notifier.showError("Gönderi güncellenemedi.");
+    }
   };
 
   const onDelete = async (id: string) => {
-    if (!confirm("Bu gönderiyi silmek istiyor musun?")) return;
-    await deleteTopluluk(id);
+    const ok = await notifier.showConfirm("Silinsin mi?", "Bu gönderiyi silmek istiyor musun?");
+    if (!ok) return;
+    try {
+      await deleteTopluluk(id);
+      notifier.showSuccess("Gönderi silindi.");
+    } catch {
+      notifier.showError("Gönderi silinemedi.");
+    }
   };
 
   const short = (s?: string) => (s || "—").slice(0, 120);
@@ -81,11 +94,7 @@ export default function ToplulukEnSon() {
                     <TableCell sx={{ maxWidth: 520 }}>{short(r.text)}</TableCell>
                     <TableCell>
                       {r.photoUrl ? (
-                        <Avatar
-                          variant="rounded"
-                          src={r.photoUrl}
-                          sx={{ width: 56, height: 56 }}
-                        />
+                        <Avatar variant="rounded" src={r.photoUrl} sx={{ width: 56, height: 56 }} />
                       ) : "—"}
                     </TableCell>
                     <TableCell align="right">
@@ -107,7 +116,6 @@ export default function ToplulukEnSon() {
           </TableContainer>
         )}
 
-        {/* Edit Dialog */}
         <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
           <DialogTitle>Gönderiyi Düzenle</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2 }}>

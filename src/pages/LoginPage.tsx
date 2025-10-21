@@ -1,4 +1,4 @@
-// src/pages/LoginPage.tsx
+// src\pages\LoginPage.tsx
 import React, { useState } from "react";
 import {
   signInWithEmailAndPassword,
@@ -10,17 +10,19 @@ import "./LoginPage.css";
 import logo from "../assets/beraber_logo.png";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { isEmailAllowed } from "../services/teamService";
+import { useNotifier } from "../contexts/NotificationContext";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const notifier = useNotifier();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      alert("Lütfen e-posta ve şifre girin.");
+      notifier.showWarning("Lütfen e-posta ve şifre girin.");
       return;
     }
 
@@ -35,7 +37,7 @@ export default function LoginPage() {
 
       if (!ok) {
         await signOut(auth);
-        alert("Bu hesap için yetki bulunamadı. Lütfen Beraber ekibi ile iletişime geçin.");
+        notifier.showError("Bu hesap için yetki bulunamadı. Lütfen Beraber ekibi ile iletişime geçin.");
         return;
       }
 
@@ -57,16 +59,10 @@ export default function LoginPage() {
         case "auth/too-many-requests":
           msg = "Çok fazla deneme. Lütfen daha sonra tekrar deneyin.";
           break;
-        case "auth/operation-not-allowed":
-          msg = "E-posta/Şifre ile giriş yöntemi etkin değil.";
-          break;
-        case "auth/invalid-api-key":
-          msg = "Geçersiz API anahtarı. Firebase yapılandırmasını kontrol edin.";
-          break;
         default:
-          msg = error?.message || msg;
+          msg = "E-posta veya şifre hatalı.";
       }
-      alert(msg);
+      notifier.showError(msg);
     } finally {
       setLoading(false);
     }
@@ -74,12 +70,12 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!email) {
-      alert("Lütfen e-posta adresinizi girin.");
+      notifier.showWarning("Lütfen e-posta adresinizi girin.");
       return;
     }
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      alert("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi!");
+      notifier.showSuccess("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi!");
     } catch (error: any) {
       let msg = "Bir hata oluştu.";
       switch (error?.code) {
@@ -90,9 +86,9 @@ export default function LoginPage() {
           msg = "Bu e-posta ile kullanıcı bulunamadı.";
           break;
         default:
-          msg = error?.message || msg;
+          msg = "İşlem sırasında bir hata oluştu.";
       }
-      alert(msg);
+      notifier.showError(msg);
     }
   };
 
@@ -155,3 +151,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

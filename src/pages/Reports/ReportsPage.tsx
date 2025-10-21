@@ -1,4 +1,4 @@
-// src/pages/reports/Reports.tsx
+// src/pages/reports/ReportsPage.tsx
 import { Box, Typography } from "@mui/material";
 import BagisMiktariGrafik from "./BagisMiktariGrafik";
 import BagisOzetKartlari from "./BagisOzetKartlari";

@@ -1,4 +1,5 @@
-﻿import { Box, Grid, Typography } from "@mui/material";
+﻿// src\pages\Dashboard\DashboardPage.tsx
+import { Box, Grid, Typography } from "@mui/material";
 import YapilacaklarListesi from "./YapilacaklarListesi";
 import AylikKullanici from "./AylikKullanici";
 import BagisKategoriOrani from "./BagisKategoriOrani";
