@@ -1,36 +1,67 @@
-// src\pages\Dashboard\SayilarBeraber.tsx
+// src/pages/Dashboard/SayilarBeraber.tsx
 import { Card, CardContent, Typography, Grid, Box } from "@mui/material";
-import { useEffect, useState } from "react";
-import { fetchDashboardCounts } from "../../services/donationsService";
+import { useEffect, useMemo, useState } from "react";
+import { donationsService, usersService } from "@/data/container"; // ⬅️ usersService'i de al
+
+type CountsState = {
+  completedDonations: number;
+  activeDonations: number;
+  totalUsers: number;
+};
 
 export default function SayilarBeraber() {
-  const [counts, setCounts] = useState({
+  const [counts, setCounts] = useState<CountsState>({
     completedDonations: 0,
     activeDonations: 0,
     totalUsers: 0,
   });
   const [loading, setLoading] = useState(true);
 
+  const nf = useMemo(
+    () => new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }),
+    []
+  );
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const data = await fetchDashboardCounts();
-        if (mounted) setCounts(data);
+        // donationsService içinden: { total, active, completed, photoPending } gelir
+        const d = await donationsService.fetchDashboardCounts().catch(() => ({
+          total: 0,
+          active: 0,
+          completed: 0,
+          photoPending: 0,
+        }));
+
+        // usersService.getGlobalTotalUsers varsa kullan; yoksa 0
+        const totalUsers = typeof (usersService as any).getGlobalTotalUsers === "function"
+          ? await (usersService as any).getGlobalTotalUsers().catch(() => 0)
+          : 0;
+
+        if (!mounted) return;
+        setCounts({
+          completedDonations: Number(d.completed) || 0,
+          activeDonations: Number(d.active) || 0,
+          totalUsers: Number(totalUsers) || 0,
+        });
       } catch (e) {
         console.error("Sayılar alınamadı:", e);
+        if (!mounted) return;
+        setCounts({ completedDonations: 0, activeDonations: 0, totalUsers: 0 });
       } finally {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Sabit başlıklar (iki satır) — Hepsi 700 ağırlık
   const items = [
-    { line1: "Biten",      line2: "Bağışlar",   value: counts.completedDonations },
-    { line1: "Devam Eden", line2: "Bağışlar",   value: counts.activeDonations },
-    { line1: "Toplam",     line2: "Kullanıcı",  value: counts.totalUsers },
+    { line1: "Biten",      line2: "Bağışlar",  value: counts.completedDonations },
+    { line1: "Devam Eden", line2: "Bağışlar",  value: counts.activeDonations },
+    { line1: "Toplam",     line2: "Kullanıcı", value: counts.totalUsers },
   ];
 
   return (
@@ -42,7 +73,7 @@ export default function SayilarBeraber() {
 
         <Grid container spacing={4}>
           {items.map((it) => (
-            <Grid item xs={10} key={it.line1 + it.line2}>
+            <Grid item xs={12} md={4} key={it.line1 + it.line2}>
               <Box
                 sx={{
                   backgroundColor: "#6A2A2B",
@@ -59,7 +90,7 @@ export default function SayilarBeraber() {
                 }}
               >
                 <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1 }}>
-                  {loading ? "…" : it.value}
+                  {loading ? "…" : nf.format(it.value)}
                 </Typography>
 
                 <Box sx={{ mt: 0.5, lineHeight: 1.1 }}>

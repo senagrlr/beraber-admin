@@ -5,7 +5,6 @@ import AdminLayout from "./layouts/AdminLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/Dashboard/DashboardPage";
 import DonationsPage from "./pages/Donations/DonationsPage";
-// ⬇️ Dosya adı DonationDetail.tsx olduğu için bu yolu kullan
 import DonationDetail from "./pages/Donations/DonationDetail";
 import CommunityPage from "./pages/Community/CommunityPage";
 import NotificationsPage from "./pages/Notifications/NotificationsPage";
@@ -29,7 +28,6 @@ export default function App() {
 
         {/* Bağışlar */}
         <Route path="/donations" element={<DonationsPage />} />
-        {/* ⬇️ Detay rotası */}
         <Route path="/donations/:id" element={<DonationDetail />} />
 
         {/* Diğer sayfalar */}

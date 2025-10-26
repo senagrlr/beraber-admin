@@ -1,5 +1,5 @@
 // src/pages/Donations/DonationsPage.tsx
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Grid, Stack } from "@mui/material";
 import BagisEkle from "./BagisEkle";
 import SonBagislar from "./SonBagislar";
 import FotoEklenmesiGereken from "./FotoEklenmesiGereken";
@@ -11,16 +11,20 @@ export default function DonationsPage() {
         Bağışlar
       </Typography>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 4, width: "100%" }}>
+      <Grid container spacing={4}>
         {/* Sol: Yeni bağış formu */}
-        <BagisEkle />
+        <Grid item xs={12} md={5}>
+          <BagisEkle />
+        </Grid>
 
         {/* Sağ: listeler */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <SonBagislar />
-          <FotoEklenmesiGereken />
-        </Box>
-      </Box>
+        <Grid item xs={12} md={7}>
+          <Stack spacing={3}>
+            <SonBagislar />
+            <FotoEklenmesiGereken />
+          </Stack>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-// src\pages\Dashboard\YapilacaklarListesi.tsx
+// src/pages/Dashboard/YapilacaklarListesi.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
@@ -21,7 +21,7 @@ import {
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
-import { addTodo, toggleTodo, watchActiveTodos, watchAllTodos } from "../../services/todoService";
+import { todosService } from "@/data/container"; // container üzerinden servis
 import type { Todo } from "../../types/Todo";
 
 const CARD_BG = "#E9E4E4";
@@ -34,14 +34,14 @@ export default function YapilacaklarListesi() {
   const [newText, setNewText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const activeCount = useMemo(() => todos.filter(t => !t.done).length, [todos]);
+  const activeCount = useMemo(() => todos.filter((t) => !t.done).length, [todos]);
 
   useEffect(() => {
     setError(null);
-    const unsub = showCompleted
-      ? watchAllTodos(setTodos)
-      : watchActiveTodos(setTodos);
-    return () => unsub();
+    const off = showCompleted
+      ? todosService.listenAll(setTodos)
+      : todosService.listenActive(setTodos);
+    return () => off?.();
   }, [showCompleted]);
 
   const handleAdd = async () => {
@@ -54,13 +54,13 @@ export default function YapilacaklarListesi() {
       setError("En fazla 10 aktif görev ekleyebilirsin. Lütfen önce bazılarını tamamla.");
       return;
     }
-    await addTodo(newText.trim());
+    await todosService.add(newText.trim());
     setNewText("");
     setOpenAdd(false);
   };
 
-  const activeTodos = todos.filter(t => !t.done);
-  const completedTodos = todos.filter(t => t.done);
+  const activeTodos = todos.filter((t) => !t.done);
+  const completedTodos = todos.filter((t) => t.done);
 
   return (
     <Card
@@ -159,26 +159,25 @@ export default function YapilacaklarListesi() {
   );
 }
 
-
 function TodoRow({ todo }: { todo: Todo }) {
   const muted = todo.done ? 0.6 : 1;
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      {/* onChange: servis çağrısı */}
       <Checkbox
         checked={todo.done}
-        onChange={() => toggleTodo(todo)}
+        onChange={() => todosService.toggle(todo)}
         icon={
           <Box
             sx={{
               width: 20,
               height: 20,
               borderRadius: "50%",
-              
               backgroundColor: "white",
               transition: "all 0.2s ease",
               "&:hover": {
-                boxShadow: "0 0 0 3px rgba(182,7,7,0.2)", // hover efekti
+                boxShadow: "0 0 0 3px rgba(182,7,7,0.2)",
               },
             }}
           />

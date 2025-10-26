@@ -1,11 +1,9 @@
-// src\pages\Settings\KullaniciBilgisi.tsx
+// src/pages/Settings/KullaniciBilgisi.tsx
 import { useEffect, useState } from "react";
 import { Card, CardContent, Typography, Box, Button } from "@mui/material";
-import { auth, db } from "../../services/firebase";
 import { onAuthStateChanged, getIdTokenResult, sendPasswordResetEmail } from "firebase/auth";
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
-import { COLLECTIONS } from "../../constants/firestore";
 import { useNotifier } from "../../contexts/NotificationContext";
+import { auth, usersService } from "@/data/container"; // Firestore yok, service kullan
 
 type TeamMember = {
   id: string;
@@ -22,18 +20,13 @@ export default function KullaniciBilgisi() {
   const [loading, setLoading] = useState<boolean>(true);
   const notifier = useNotifier();
 
-  // Auth dinle (ilk render'da user null olabilir)
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUserState(u);
-    });
+    const unsub = onAuthStateChanged(auth, (u) => setUserState(u));
     return () => unsub();
   }, []);
 
-  // Team members + rol
   useEffect(() => {
     let alive = true;
-
     (async () => {
       setLoading(true);
       try {
@@ -46,28 +39,20 @@ export default function KullaniciBilgisi() {
           return;
         }
 
-        // 1) team_members içinde email eşleşeni çek
-        const qy = query(
-          collection(db, COLLECTIONS.TEAM_MEMBERS),
-          where("email", "==", u.email),
-          limit(1)
-        );
-        const snap = await getDocs(qy);
-        const m: TeamMember | null = snap.empty
-          ? null
-          : ({ id: snap.docs[0].id, ...(snap.docs[0].data() as any) } as TeamMember);
+        // 1) team_members → servis
+        const m = await usersService.getMemberByEmail(u.email);
 
-        // 2) admin claim’i oku
+        // 2) admin claim (istersen usersService.isAdmin(u) olarak soyutlayabilirsin)
         const token = await getIdTokenResult(u, true);
         const isAdmin = token.claims?.admin === true;
 
-        // 3) rol metnini belirle (öncelik: team_members.role)
+        // 3) rol metni
         const role =
           (m?.role && String(m.role).trim()) ||
           (isAdmin ? "Yönetici" : "Kullanıcı");
 
         if (alive) {
-          setMember(m);
+          setMember(m ?? null);
           setRoleText(role);
         }
       } catch (e) {
@@ -80,7 +65,6 @@ export default function KullaniciBilgisi() {
         if (alive) setLoading(false);
       }
     })();
-
     return () => {
       alive = false;
     };
@@ -89,10 +73,10 @@ export default function KullaniciBilgisi() {
   const onSendReset = async () => {
     if (!userState?.email) return;
     try {
-        await sendPasswordResetEmail(auth, userState.email);
-        notifier.showSuccess("Şifre sıfırlama bağlantısı e-posta adresine gönderildi.");
+      await sendPasswordResetEmail(auth, userState.email);
+      notifier.showSuccess("Şifre sıfırlama bağlantısı e-posta adresine gönderildi.");
     } catch {
-        notifier.showError("Şifre sıfırlama bağlantısı gönderilemedi.");
+      notifier.showError("Şifre sıfırlama bağlantısı gönderilemedi.");
     }
   };
 
@@ -131,7 +115,6 @@ export default function KullaniciBilgisi() {
               <Typography color="text.secondary">{roleText}</Typography>
             </Box>
 
-            {/* Şifre değiştir (reset link) */}
             <Box
               sx={{
                 backgroundColor: "#E8E4E4",
@@ -163,4 +146,3 @@ export default function KullaniciBilgisi() {
     </Card>
   );
 }
-

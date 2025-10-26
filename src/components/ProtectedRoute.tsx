@@ -1,20 +1,12 @@
-// src\components\ProtectedRoute.tsx
+// src/components/ProtectedRoute.tsx
 import { ReactNode, useEffect, useRef, useState } from "react";
 import type { User } from "firebase/auth";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth, db } from "../services/firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
+import { onAuthStateChanged, signOut, getIdTokenResult } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { Box, CircularProgress } from "@mui/material";
-import { COLLECTIONS } from "../constants/firestore";
+
+// 🔁 usersService yerine teamService kullan
+import { auth, teamService } from "@/data/container";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
@@ -36,13 +28,25 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       }
 
       try {
-        const ok = await checkAuthorization(u);
+        // (Opsiyonel) Admin claim’i varsa direkt geçir
+        const token = await getIdTokenResult(u).catch(() => null);
+        const isAdmin = token?.claims?.admin === true;
+
+        let ok = false;
+        if (isAdmin) {
+          ok = true;
+        } else {
+          // team_members'ta e-posta whitelist kontrolü
+          const normalized = (u.email || "").trim().toLowerCase();
+          ok = normalized ? await teamService.isEmailAllowed(normalized) : false;
+        }
+
         if (!mounted.current) return;
         setAllowed(ok);
         if (!ok) {
           await signOut(auth).catch(() => {});
         }
-      } catch {
+      } catch (e) {
         if (!mounted.current) return;
         setAllowed(false);
         await signOut(auth).catch(() => {});
@@ -55,48 +59,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Yetkilendirme: 1) team_members (emailLower + active) 2) users/{uid}.role === 'admin' 3) custom claims admin:true
-  async function checkAuthorization(u: User): Promise<boolean> {
-    // 1) team_members whitelist (emailLower == user.email && active == true)
-    const email = (u.email || "").trim().toLowerCase();
-    if (email) {
-      try {
-        const qy = query(
-          collection(db, COLLECTIONS.TEAM_MEMBERS),
-          where("emailLower", "==", email),
-          where("active", "==", true),
-          limit(1)
-        );
-        const snap = await getDocs(qy);
-        if (snap.size > 0) return true;
-      } catch {
-        // index yoksa “where emailLower + active” atlamış oluruz; aşağıdaki alternatiflere düşer
-      }
-    }
-
-    // 2) users/{uid}.role === 'admin'
-    try {
-      const us = await getDoc(doc(db, COLLECTIONS.USERS, u.uid));
-      const role = us.exists() ? (us.data() as any)?.role : null;
-      if (role === "admin") return true;
-    } catch {
-      // geç
-    }
-
-    // 3) Custom claims
-    try {
-      const token = await u.getIdTokenResult(true);
-      if (token.claims && (token.claims as any).admin === true) {
-        return true;
-      }
-    } catch {
-      // geç
-    }
-
-    return false;
-  }
-
-  // Yönlendirme etkisini ayrı effect’te yap (render saf)
+  // allowed === false olduğunda login'e gönder
   useEffect(() => {
     if (allowed === false) {
       navigate("/login", { replace: true });

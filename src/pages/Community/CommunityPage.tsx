@@ -1,4 +1,4 @@
-// src/pages/Community/CommunityPage.tsx  
+// src/pages/Community/CommunityPage.tsx
 import { Box, Grid, Typography } from "@mui/material";
 import BeraberdeBuAy from "./BeraberdeBuAy";
 import Topluluk from "./Topluluk";
@@ -12,14 +12,14 @@ export default function CommunityPage() {
         Topluluk
       </Typography>
 
-      <Grid container spacing={12} alignItems="flex-start">
+      <Grid container spacing={{ xs: 4, md: 6 }} alignItems="flex-start">
         {/* SOL: ekleme kartları — md ve üstünde yan yana, mobilde alt alta */}
         <Grid item xs={12} md={7}>
           <Box
             sx={{
               display: "grid",
-              gap: 10,
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, // ← yan yana
+              gap: { xs: 4, md: 6 },
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               alignItems: "start",
             }}
           >
@@ -33,7 +33,7 @@ export default function CommunityPage() {
           <Box
             sx={{
               display: "grid",
-              gap: 6,
+              gap: { xs: 4, md: 6 },
               position: { md: "sticky" },
               top: { md: 24 },
             }}

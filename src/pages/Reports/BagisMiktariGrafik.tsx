@@ -1,8 +1,17 @@
-// src\pages\Reports\BagisMiktariGrafik.tsx
+// src/pages/Reports/BagisMiktariGrafik.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, Typography, Box, Select, MenuItem, CircularProgress, Alert } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Select,
+  MenuItem,
+  CircularProgress,
+  Alert,
+} from "@mui/material";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
-import { fetchMonthlyDonationSums } from "../../services/donationsService";
+import { donationsService } from "@/data/container"; // ⬅️ container üzerinden servis
 
 const MONTHS_TR = ["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
 
@@ -15,11 +24,9 @@ function niceUpperBound(n: number) {
   ];
   for (const s of steps) {
     const up = Math.ceil(n / s) * s;
-    if (up >= n && up / s <= 10) return up; // en fazla ~10 tick
+    if (up >= n && up / s <= 10) return up;
   }
-  // çok büyükse bir sonraki milyona yuvarla
-  const m = 1_000_000;
-  return Math.ceil(n / m) * m;
+  return Math.ceil(n / 1_000_000) * 1_000_000;
 }
 
 /** 1234 -> 1.2k, 2_000_000 -> 2M */
@@ -37,7 +44,7 @@ export default function BagisMiktariGrafik() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const yearOptions = useMemo(() => [ thisYear, thisYear + 1], [thisYear]);
+  const yearOptions = useMemo(() => [thisYear, thisYear + 1], [thisYear]);
 
   useEffect(() => {
     let alive = true;
@@ -45,10 +52,11 @@ export default function BagisMiktariGrafik() {
       setLoading(true);
       setErr(null);
       try {
-        const data = await fetchMonthlyDonationSums(year);
+        // ⬇️ container servisinden al
+        const data = await donationsService.fetchMonthlyDonationSums(year);
         if (!alive) return;
         setRows(data);
-      } catch (_e) {
+      } catch {
         if (!alive) return;
         setErr("Bağış verileri alınamadı.");
         setRows(MONTHS_TR.map((m) => ({ month: m, total: 0 })));

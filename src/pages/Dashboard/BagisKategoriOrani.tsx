@@ -1,8 +1,8 @@
-// src\pages\Dashboard\BagisKategoriOrani.tsx
+// src/pages/Dashboard/BagisKategoriOrani.tsx
 import { Card, CardContent, Typography, Box } from "@mui/material";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useEffect, useState } from "react";
-import { fetchCategoryRatios } from "../../services/donationsService";
+import { donationsService } from "@/data/container"; // ⬅️ container üzerinden
 
 type PieDatum = { name: string; value: number; color: string };
 
@@ -14,8 +14,8 @@ export default function BagisKategoriOrani() {
     let mounted = true;
     (async () => {
       try {
-        const ratios = await fetchCategoryRatios();
-        if (mounted) setData(ratios);
+        const ratios = await donationsService.fetchCategoryRatios(); // ⬅️ servis çağrısı
+        if (mounted) setData(ratios as PieDatum[]);
       } catch (e) {
         console.error("Kategori oranları yüklenemedi:", e);
       } finally {

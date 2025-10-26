@@ -1,4 +1,4 @@
-// src\pages\Notifications\NotificationsPage.tsx
+// src/pages/Notifications/NotificationsPage.tsx
 import { Box, Typography } from "@mui/material";
 import YeniBildirimEkle from "./YeniBildirimEkle";
 import SonBildirimler from "./SonBildirimler";
@@ -15,4 +15,3 @@ export default function NotificationPage() {
     </Box>
   );
 }
-

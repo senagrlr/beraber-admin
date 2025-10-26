@@ -1,4 +1,4 @@
-// src\pages\Dashboard\AylikKullanici.tsx
+// src/pages/Dashboard/AylikKullanici.tsx
 import {
   Card,
   CardContent,
@@ -18,22 +18,12 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { fetchMonthlyUserCounts } from "../../services/userStatsService";
+import { usersService } from "@/data/container"; // ⬅️ yeni: container üzerinden servis
 
 // TR kısaltmalar (grafikte sıra sabit kalsın)
 const MONTHS_TR = [
-  "Oca",
-  "Şub",
-  "Mar",
-  "Nis",
-  "May",
-  "Haz",
-  "Tem",
-  "Ağu",
-  "Eyl",
-  "Eki",
-  "Kas",
-  "Ara",
+  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
+  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
 ];
 
 // Y ekseni üst sınırını veriye göre "güzel" bir sayıya yuvarla
@@ -54,13 +44,10 @@ export default function AylikKullanici() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // Dropdown'a 3 yıl koy (geçmiş/şimdiki/gelecek)
-  const yearOptions = useMemo(
-    () => [ thisYear, thisYear + 1],
-    [thisYear]
-  );
+  // Dropdown'a 2 yıl koy (şimdiki/gelecek)
+  const yearOptions = useMemo(() => [thisYear, thisYear + 1], [thisYear]);
 
-  // Boş/az veri durumunda kartın boş kalmaması için min 5 göster
+  // Boş/az veri durumunda kartın boş kalmaması için default dizi
   const emptyData = useMemo(
     () => MONTHS_TR.map((m) => ({ month: m, count: 0 })),
     []
@@ -72,20 +59,22 @@ export default function AylikKullanici() {
       setLoading(true);
       setErr(null);
       try {
-        const rows = await fetchMonthlyUserCounts(year);
+        // ⬇️ container servisinden al
+        const rows = await usersService.fetchMonthlyUserCounts(year);
+
         if (!alive) return;
 
-        // Gelen veriyi 12 aya oturt, eksik ayı 0 say ve min 5 uygula
+        // Gelen veriyi 12 aya oturt (eksik ayları 0 kabul et)
         const map = new Map<string, number>();
         for (const r of rows) map.set(r.month, Number(r.count) || 0);
 
-        const merged = MONTHS_TR.map((m) => {
-          const raw = map.get(m) ?? 0;
-          return { month: m, count: Math.max(raw, 5) };
-        });
+        const merged = MONTHS_TR.map((m) => ({
+          month: m,
+          count: Math.max(map.get(m) ?? 0, 5), // min 5 görünürlüğü koru
+        }));
 
         setData(merged);
-      } catch (e: any) {
+      } catch (_e) {
         if (!alive) return;
         setErr("Aylık kullanıcı verileri alınamadı.");
         setData(emptyData);
@@ -93,7 +82,6 @@ export default function AylikKullanici() {
         if (alive) setLoading(false);
       }
     })();
-
     return () => {
       alive = false;
     };

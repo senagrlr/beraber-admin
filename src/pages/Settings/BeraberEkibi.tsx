@@ -1,12 +1,10 @@
-// src\pages\Settings\BeraberEkibi.tsx
+// src/pages/Settings/BeraberEkibi.tsx
 import { useEffect, useState } from "react";
 import {
   Card, CardContent, Typography,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Box
 } from "@mui/material";
-import { db } from "../../services/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
-import { COLLECTIONS } from "../../constants/firestore";
+import { teamsService } from "@/data/container";
 
 type TeamMember = {
   id: string;
@@ -26,46 +24,30 @@ export default function BeraberEkibi() {
   useEffect(() => {
     let alive = true;
 
-    // Basit ve kurşun geçirmez listener: orderBy YOK, client-side sort VAR
-    const off = onSnapshot(
-      collection(db, COLLECTIONS.TEAM_MEMBERS),
-      (snap) => {
-        if (!alive) return;
+    // Realtime liste — servis imzası: listenAll(cb, limitN?)
+    const off = teamsService.listenAll((list) => {
+      if (!alive) return;
 
-        console.log("[BeraberEkibi] snapshot size:", snap.size);
-        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
+      // sadece aktifleri istiyorsan yorum satırını aç:
+      // const filtered = list.filter(x => x.active !== false);
+      const filtered = [...list];
 
-        // İstersen sadece aktifleri göster:
-        // const filtered = list.filter(x => x.active !== false);
-        const filtered = list;
+      // sırala: önce order (yoksa sonsuz), eşitse isme göre
+      filtered.sort((a, b) => {
+        const ao = a.order ?? Number.POSITIVE_INFINITY;
+        const bo = b.order ?? Number.POSITIVE_INFINITY;
+        if (ao !== bo) return ao - bo;
+        return (a.name ?? "").localeCompare(b.name ?? "", "tr");
+      });
 
-        // client-side sort: önce order (yoksa sonsuz), eşitse isme göre
-        filtered.sort((a, b) => {
-          const ao = a.order ?? Number.POSITIVE_INFINITY;
-          const bo = b.order ?? Number.POSITIVE_INFINITY;
-          if (ao !== bo) return ao - bo;
-          return (a.name ?? "").localeCompare(b.name ?? "", "tr");
-        });
-
-        setRows(filtered);
-        setError(null);
-        setLoading(false);
-      },
-      (err) => {
-        if (!alive) return;
-        console.error("[BeraberEkibi] onSnapshot ERROR:", err);
-        setError(
-          (err as any)?.code === "permission-denied"
-            ? "Ekip üyelerini okuma izniniz yok."
-            : (err as any)?.message || "Ekip listesi alınamadı."
-        );
-        setLoading(false);
-      }
-    );
+      setRows(filtered);
+      setError(null);
+      setLoading(false);
+    }, 50); // istersen limit artır/azalt
 
     return () => {
       alive = false;
-      off();
+      off?.();
     };
   }, []);
 

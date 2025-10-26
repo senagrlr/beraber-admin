@@ -1,4 +1,4 @@
-﻿// src\pages\Dashboard\DashboardPage.tsx
+﻿// src/pages/Dashboard/DashboardPage.tsx
 import { Box, Grid, Typography } from "@mui/material";
 import YapilacaklarListesi from "./YapilacaklarListesi";
 import AylikKullanici from "./AylikKullanici";
@@ -13,33 +13,39 @@ export default function DashboardPage() {
         Dashboard
       </Typography>
 
-      {/* 🟩 ÜST SATIR (AYNEN) */}
+      {/* ÜST SATIR */}
       <Grid
         container
         spacing={3}
         mb={3}
-        sx={{ width: "100%", display: "flex", flexWrap: "nowrap" }}
+        wrap="nowrap"
+        sx={{ width: "100%" }}
       >
-        <Grid xs={4} sx={{ flex: "0 0 30%", minWidth: 350 }}>
+        <Grid item xs={12} md={4} sx={{ flex: "0 0 30%", minWidth: 350 }}>
           <YapilacaklarListesi />
         </Grid>
 
-        <Grid xs={8} sx={{ flex: "1 1 auto", width: "100%" }}>
+        <Grid item xs={12} md={8} sx={{ flex: "1 1 auto", width: "100%" }}>
           <AylikKullanici />
         </Grid>
       </Grid>
 
-      {/* 🟨 ALT SATIR (ortadaki kart geniş/dar yapıyorsan md değerlerini burada ayarlarsın) */}
-      <Grid container spacing={5} sx={{ width: "100%", display: "flex", flexWrap: "nowrap" }}>
-        <Grid xs={4} sx={{ flex: "0 0 30%", minWidth: 350 }}>
+      {/* ALT SATIR */}
+      <Grid
+        container
+        spacing={5}
+        wrap="nowrap"
+        sx={{ width: "100%" }}
+      >
+        <Grid item xs={12} md={4} sx={{ flex: "0 0 30%", minWidth: 350 }}>
           <BagisKategoriOrani />
         </Grid>
 
-        <Grid xs={4} sx={{ flex: "0 0 30%", minWidth: 350 }}>
+        <Grid item xs={12} md={4} sx={{ flex: "0 0 30%", minWidth: 350 }}>
           <BitenBagisKampanyalari />
         </Grid>
 
-        <Grid xs={4} sx={{ flex: "0 0 35%", minWidth: 350 }}>
+        <Grid item xs={12} md={4} sx={{ flex: "0 0 35%", minWidth: 350 }}>
           <SayilarBeraber />
         </Grid>
       </Grid>

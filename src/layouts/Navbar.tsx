@@ -1,26 +1,18 @@
 // src/layout/Navbar.tsx
 import { useEffect, useState } from "react";
-import {
-  Box,
-  Menu,
-  MenuItem,
-  Typography,
-  Badge,
-} from "@mui/material";
-import {
-  Person,
-  ArrowDropDown,
-  Notifications,
-} from "@mui/icons-material";
-import { COLORS } from "./ui";
+import { Box, Menu, MenuItem, Typography, Badge } from "@mui/material";
+import { Person, ArrowDropDown, Notifications } from "@mui/icons-material";
+import { COLORS } from "@/constants/colors";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../services/firebase";
+import { auth, teamService, donationsService } from "@/data/container";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { getTeamMemberByEmail } from "../services/teamService";
-import { listenRecentCompletedDonations } from "../services/donationsService";
-import SearchDonations from "../components/SearchDonations";
+import SearchDonations from "@/components/SearchDonations";
 
 type MemberInfo = { name: string; role?: string } | null;
+
+// ⬇️ Tek yerde tanımla ve export et
+export const NAVBAR_HEIGHT = 64;
+export const SIDEBAR_WIDTH = 240;
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -40,7 +32,7 @@ export default function Navbar() {
         setMember(null);
         return;
       }
-      const m = await getTeamMemberByEmail(u.email);
+      const m = await teamService.getMemberByEmail(u.email);
       setMember(m ?? { name: u.email.split("@")[0], role: "—" });
     });
     return () => unsub();
@@ -63,10 +55,8 @@ export default function Navbar() {
   const handleNotifClose = () => setNotifAnchor(null);
 
   useEffect(() => {
-    const unsub = listenRecentCompletedDonations(10, (rows) => {
-      setCompleted(
-        rows.map((r) => ({ id: r.id, name: r.name || "(İsimsiz)" }))
-      );
+    const unsub = donationsService.listenRecentCompleted(10, (rows) => {
+      setCompleted(rows.map((r) => ({ id: r.id, name: r.name || "(İsimsiz)" })));
     });
     return () => unsub?.();
   }, []);
@@ -76,9 +66,9 @@ export default function Navbar() {
       sx={{
         position: "fixed",
         top: 0,
-        left: 240,
+        left: SIDEBAR_WIDTH,     // ⬅️ tek yerden
         right: 0,
-        height: 64,
+        height: NAVBAR_HEIGHT,   // ⬅️ tek yerden
         backgroundColor: "#FFFFFF",
         borderBottom: "0.5px solid #F5F2F2",
         display: "flex",
@@ -89,10 +79,8 @@ export default function Navbar() {
         zIndex: 1000,
       }}
     >
-      {/* 🔍 Arama kutusu (ayrı component) */}
       <SearchDonations width={600} />
 
-      {/* Kullanıcı + Bildirim */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
         <Badge color="error" badgeContent={completed.length || null}>
           <Notifications

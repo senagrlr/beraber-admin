@@ -1,4 +1,4 @@
-// src\pages\Community\ToplulukEnSon.tsx
+// src/pages/Community/ToplulukEnSon.tsx
 import { useEffect, useState } from "react";
 import {
   Card, CardContent, Typography, Box, IconButton, Tooltip,
@@ -6,16 +6,18 @@ import {
   Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Avatar
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
-import {
-  listenLastTopluluk,
-  updateTopluluk,
-  deleteTopluluk,
-  type ToplulukDoc,
-} from "../../services/communityService";
 import { useNotifier } from "../../contexts/NotificationContext";
+import { communityService } from "@/data/container";
+
+// Domain tipin yoksa bu hafif tip işini görür:
+type PostRow = {
+  id: string;
+  text?: string;
+  photoUrl?: string;
+};
 
 export default function ToplulukEnSon() {
-  const [rows, setRows] = useState<ToplulukDoc[]>([]);
+  const [rows, setRows] = useState<PostRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [open, setOpen] = useState(false);
@@ -26,14 +28,14 @@ export default function ToplulukEnSon() {
   const notifier = useNotifier();
 
   useEffect(() => {
-    const unsub = listenLastTopluluk(10, (r) => {
-      setRows(r);
+    const unsub = communityService.listenCommunityPosts(10, (r) => {
+      setRows(r as PostRow[]);
       setLoading(false);
     });
-    return () => unsub();
+    return () => { try { unsub?.(); } catch {} };
   }, []);
 
-  const onEdit = (r: ToplulukDoc) => {
+  const onEdit = (r: PostRow) => {
     setEditId(r.id);
     setEditText(r.text ?? "");
     setEditUrl(r.photoUrl ?? "");
@@ -43,7 +45,7 @@ export default function ToplulukEnSon() {
   const onSave = async () => {
     if (!editId) return;
     try {
-      await updateTopluluk(editId, {
+      await communityService.updateCommunityPost(editId, {
         text: editText.trim() || undefined,
         photoUrl: editUrl.trim() || undefined,
       });
@@ -58,7 +60,7 @@ export default function ToplulukEnSon() {
     const ok = await notifier.showConfirm("Silinsin mi?", "Bu gönderiyi silmek istiyor musun?");
     if (!ok) return;
     try {
-      await deleteTopluluk(id);
+      await communityService.deleteCommunityPost(id);
       notifier.showSuccess("Gönderi silindi.");
     } catch {
       notifier.showError("Gönderi silinemedi.");
@@ -94,7 +96,11 @@ export default function ToplulukEnSon() {
                     <TableCell sx={{ maxWidth: 520 }}>{short(r.text)}</TableCell>
                     <TableCell>
                       {r.photoUrl ? (
-                        <Avatar variant="rounded" src={r.photoUrl} sx={{ width: 56, height: 56 }} />
+                        <Avatar
+                          variant="rounded"
+                          src={r.photoUrl}
+                          sx={{ width: 56, height: 56 }}
+                        />
                       ) : "—"}
                     </TableCell>
                     <TableCell align="right">
@@ -116,6 +122,7 @@ export default function ToplulukEnSon() {
           </TableContainer>
         )}
 
+        {/* Edit Dialog */}
         <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
           <DialogTitle>Gönderiyi Düzenle</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2 }}>
@@ -136,7 +143,7 @@ export default function ToplulukEnSon() {
             />
             {editUrl && (
               <Box sx={{ borderRadius: 2, overflow: "hidden", background: "#faf7f7", height: 180 }}>
-                <img src={editUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src={editUrl} alt="Önizleme" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </Box>
             )}
           </DialogContent>

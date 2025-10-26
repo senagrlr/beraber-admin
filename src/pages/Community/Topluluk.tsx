@@ -1,32 +1,40 @@
-// src\pages\Community\Topluluk.tsx
-import { useState } from "react";
+// src/pages/Community/Topluluk.tsx
+import { useMemo, useState } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
-import { db } from "../../services/firebase";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { COLLECTIONS } from "../../constants/firestore";
 import { useNotifier } from "../../contexts/NotificationContext";
+import { communityService } from "@/data/container";
 
 export default function Topluluk() {
   const [text, setText] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [imgError, setImgError] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const notifier = useNotifier();
 
+  const trimmedUrl = photoUrl.trim();
+  const isHttpUrl = /^https?:\/\//i.test(trimmedUrl);
+  const previewOk = isHttpUrl && !imgError;
+
+  const isValid = useMemo(() => isHttpUrl, [isHttpUrl]);
+
+  const resetForm = () => {
+    setText("");
+    setPhotoUrl("");
+    setImgError("");
+  };
+
   const onSave = async () => {
-    if (!photoUrl.trim()) {
-      notifier.showWarning("Fotoğraf URL'si gerekli.");
+    if (!isValid) {
+      notifier.showWarning("Geçerli bir fotoğraf URL’si girin (https:// ile başlamalı).");
       return;
     }
     try {
       setSaving(true);
-      await addDoc(collection(db, COLLECTIONS.COMMUNITY_POSTS), {
+      await communityService.addCommunityPost({
         text: text.trim(),
-        photoUrl: photoUrl.trim(),
-        status: "active",
-        createdAt: serverTimestamp(),
+        photoUrl: trimmedUrl,
       });
-      setText("");
-      setPhotoUrl("");
+      resetForm();
       notifier.showSuccess("Gönderi başarıyla yayınlandı!");
     } catch (e) {
       console.error(e);
@@ -35,8 +43,6 @@ export default function Topluluk() {
       setSaving(false);
     }
   };
-
-  const previewOk = /^https?:\/\//i.test(photoUrl.trim());
 
   return (
     <Box sx={{ backgroundColor: "#E8E4E4", borderRadius: 3, p: 6 }}>
@@ -47,9 +53,12 @@ export default function Topluluk() {
       {/* Foto URL */}
       <TextField
         label="Fotoğraf URL'si"
-        placeholder="https://…"
+        placeholder="https://…/gorsel.jpg"
         value={photoUrl}
-        onChange={(e) => setPhotoUrl(e.target.value)}
+        onChange={(e) => {
+          setImgError("");
+          setPhotoUrl(e.target.value);
+        }}
         fullWidth
         sx={{ mb: 2 }}
       />
@@ -65,13 +74,15 @@ export default function Topluluk() {
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
+          mb: imgError ? 0.5 : 2,
         }}
       >
         {previewOk ? (
           <img
-            src={photoUrl.trim()}
+            src={trimmedUrl}
             alt="Topluluk"
             style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
+            onError={() => setImgError("Görsel yüklenemedi. URL’yi kontrol edin.")}
           />
         ) : (
           <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
@@ -83,6 +94,9 @@ export default function Topluluk() {
           </Typography>
         )}
       </Box>
+      {!!imgError && (
+        <Typography sx={{ color: "#a33", fontSize: 12, mb: 2 }}>{imgError}</Typography>
+      )}
 
       {/* Metin alanı */}
       <TextField
@@ -102,7 +116,7 @@ export default function Topluluk() {
         variant="contained"
         size="large"
         onClick={onSave}
-        disabled={saving || !photoUrl.trim()}
+        disabled={saving || !isValid}
         sx={{
           mt: 6,
           px: 4,
@@ -121,4 +135,3 @@ export default function Topluluk() {
     </Box>
   );
 }
-

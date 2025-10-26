@@ -10,15 +10,12 @@ import {
 } from "@mui/material";
 import { Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { searchDonationsByName } from "../services/donationsService";
+// ⬇️ DI container’dan çek
+import { donationsService } from "@/data/container";
 
 type DonationHit = { id: string; name: string };
 
-export default function SearchDonations({
-  width = 600,
-}: {
-  width?: number | string;
-}) {
+export default function SearchDonations({ width = 600 }: { width?: number | string }) {
   const navigate = useNavigate();
 
   const [term, setTerm] = useState("");
@@ -35,9 +32,15 @@ export default function SearchDonations({
         setOpen(false);
         return;
       }
-      const rows = await searchDonationsByName(q, 8);
-      setHits(rows);
-      setOpen(rows.length > 0);
+      try {
+        const rows = await donationsService.searchByName(q, 8);
+        setHits(rows);
+        setOpen(rows.length > 0);
+      } catch {
+        // sessizce yut: arama başarısızsa dropdown’ı kapat
+        setHits([]);
+        setOpen(false);
+      }
     }, 200);
     return () => clearTimeout(t);
   }, [term]);
@@ -102,9 +105,7 @@ export default function SearchDonations({
               <ListItemButton key={h.id} onClick={() => goDetail(h.id)}>
                 <ListItemText
                   primary={h.name}
-                  primaryTypographyProps={{
-                    sx: { fontWeight: 600, color: "#5B3B3B" },
-                  }}
+                  primaryTypographyProps={{ sx: { fontWeight: 600, color: "#5B3B3B" } }}
                   secondary={`ID: ${h.id}`}
                   secondaryTypographyProps={{ sx: { fontSize: 12 } }}
                 />

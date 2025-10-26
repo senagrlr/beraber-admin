@@ -4,13 +4,13 @@
     "\\src",
     "\\src\\assets",
     "\\src\\components",
-    "\\src\\constants",
     "\\src\\data",
+    "\\src\\domain",
+    "\\src\\domain\\community",
+    "\\src\\domain\\donations",
     "\\src\\layouts",
-    "\\src\\pages",
-    "\\src\\pages\\Settings",
-    "\\src\\services"
+    "\\src\\types"
   ],
-  "SelectedNode": "\\src\\constants",
+  "SelectedNode": "\\src\\data\\services\\team.service.ts",
   "PreviewInSolutionExplorer": false
 }

@@ -1,33 +1,47 @@
-// src\pages\Donations\FotoEklenmesiGereken.tsx
+// src/pages/Donations/FotoEklenmesiGereken.tsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Box, IconButton } from "@mui/material";
 import { Edit } from "@mui/icons-material";
-import { fetchPhotoPendingDonations } from "../../services/donationsService";
+import { donationsService } from "@/data/container";
 
-type Donation = {
+type Row = {
   id: string;
   name?: string;
-  createdAt?: { seconds: number };
+  createdAt?: { toDate?: () => Date } | { seconds: number } | Date | null;
 };
 
 export default function FotoEklenmesiGereken() {
-  const [rows, setRows] = useState<Donation[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const reload = async () => {
-    setLoading(true);
-    const r = await fetchPhotoPendingDonations();
-    setRows(r as any);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const r = await donationsService.fetchPhotoPending(); // ⬅️ container servisi
+      setRows(r as any);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    reload();
+    void reload();
   }, []);
 
   const goDetail = (id: string) => navigate(`/donations/${id}`);
+
+  const formatDate = (val: Row["createdAt"]) => {
+    if (!val) return "";
+    // Firestore Timestamp, Date veya {seconds} için korumalı okuma
+    if (val instanceof Date) return val.toLocaleDateString("tr-TR");
+    // @ts-ignore
+    if (typeof val?.toDate === "function") return val.toDate().toLocaleDateString("tr-TR");
+    // @ts-ignore
+    if (typeof val?.seconds === "number") return new Date(val.seconds * 1000).toLocaleDateString("tr-TR");
+    return "";
+  };
 
   return (
     <Card
@@ -63,15 +77,13 @@ export default function FotoEklenmesiGereken() {
               "&:hover": { backgroundColor: "#faf6f6" },
             }}
           >
-            <Typography sx={{ fontWeight: 600, color: "#5B3B3B" }}>{d.name}</Typography>
+            <Typography sx={{ fontWeight: 600, color: "#5B3B3B" }}>{d.name || "—"}</Typography>
 
             <Box
-              onClick={(e) => e.stopPropagation()} // satıra tıklamayı engelle
+              onClick={(e) => e.stopPropagation()}
               sx={{ display: "flex", alignItems: "center", gap: 2 }}
             >
-              <Typography color="gray">
-                {d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleDateString("tr-TR") : ""}
-              </Typography>
+              <Typography color="gray">{formatDate(d.createdAt)}</Typography>
               <IconButton size="small" onClick={() => goDetail(d.id)} title="Detaya git">
                 <Edit fontSize="small" />
               </IconButton>

@@ -1,15 +1,14 @@
-// src\pages\LoginPage.tsx
+// src/pages/LoginPage.tsx
 import React, { useState } from "react";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut,
 } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { auth, teamService } from "@/data/container";
 import "./LoginPage.css";
 import logo from "../assets/beraber_logo.png";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { isEmailAllowed } from "../services/teamService";
 import { useNotifier } from "../contexts/NotificationContext";
 
 export default function LoginPage() {
@@ -33,7 +32,7 @@ export default function LoginPage() {
 
       // 2) Whitelist (team_members)
       const normalized = (cred.user.email || "").trim().toLowerCase();
-      const ok = await isEmailAllowed(normalized);
+      const ok = await teamService.isEmailAllowed(normalized);
 
       if (!ok) {
         await signOut(auth);
@@ -151,4 +150,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

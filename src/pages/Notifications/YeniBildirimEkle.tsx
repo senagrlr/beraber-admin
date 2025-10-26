@@ -1,4 +1,4 @@
-// src\pages\Notifications\YeniBildirimEkle.tsx
+// src/pages/Notifications/YeniBildirimEkle.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   Card, CardContent, Grid, Box, Typography, TextField,
@@ -8,8 +8,12 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { tr } from "date-fns/locale";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { createNotification, fetchCampaignOptions } from "../../services/notificationsService";
-import type { NotificationTarget } from "../../services/notificationsService";
+import { notificationsService } from "@/data/container";
+
+/** minimal tip */
+type NotificationTarget =
+  | { type: "all" }
+  | { type: "campaign"; campaignId: string; campaignName?: string };
 
 export default function YeniBildirimEkle() {
   const [title, setTitle] = useState("");
@@ -19,15 +23,19 @@ export default function YeniBildirimEkle() {
   const [campaignId, setCampaignId] = useState("");
   const [scheduledAt, setScheduledAt] = useState<Date | null>(() => {
     const d = new Date();
-    d.setMinutes(d.getMinutes() + 5); // varsayılan: 5 dk sonrası
+    d.setMinutes(d.getMinutes() + 5);
     return d;
   });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const rows = await fetchCampaignOptions();
-      setCampaigns(rows);
+      try {
+        const rows = await notificationsService.fetchCampaignOptions();
+        setCampaigns(rows);
+      } catch {
+        // sessiz
+      }
     })();
   }, []);
 
@@ -53,7 +61,7 @@ export default function YeniBildirimEkle() {
     if (!canSubmit || !scheduledAt || !target) return;
     setSaving(true);
     try {
-      await createNotification({
+      await notificationsService.create({
         title: title.trim(),
         body: body.trim(),
         target,
@@ -73,7 +81,7 @@ export default function YeniBildirimEkle() {
   };
 
   return (
-    <Card sx={{ borderRadius: 3,  boxShadow: "0 2px 10px rgba(0,0,0,0.05)",backgroundColor: "#E8E4E4", }}>
+    <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", backgroundColor: "#E8E4E4" }}>
       <CardContent>
         <Grid container spacing={3}>
           {/* Sol taraf: başlık + içerik + kime */}
@@ -118,11 +126,7 @@ export default function YeniBildirimEkle() {
 
             {/* Kime gidecek */}
             <Box>
-              <RadioGroup
-                row={false}
-                value={who}
-                onChange={(e) => setWho(e.target.value as any)}
-              >
+              <RadioGroup row={false} value={who} onChange={(e) => setWho(e.target.value as any)}>
                 <FormControlLabel value="all" control={<Radio />} label="Genel" />
                 <Box display="flex" alignItems="center" gap={1} mt={1}>
                   <FormControlLabel value="campaign" control={<Radio />} label="Kampanya Özel" />

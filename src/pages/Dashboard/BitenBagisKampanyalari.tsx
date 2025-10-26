@@ -1,12 +1,12 @@
-// src\pages\Dashboard\BitenBagisKampanyalari.tsx
+// src/pages/Dashboard/BitenBagisKampanyalari.tsx
 import { Box, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { fetchCompletedCampaigns } from "../../services/donationsService";
+import { donationsService } from "@/data/container"; // ⬅️ container üzerinden
 
 type CompletedDonation = {
   id: string;
   name: string;
-  createdAt?: any; // Firestore Timestamp
+  createdAt?: any; // Firestore Timestamp | Date
 };
 
 export default function BitenBagisKampanyalari() {
@@ -17,8 +17,8 @@ export default function BitenBagisKampanyalari() {
     let mounted = true;
     (async () => {
       try {
-        const data = await fetchCompletedCampaigns(10);
-        if (mounted) setItems(data);
+        const data = await donationsService.fetchCompletedCampaigns(10); // ⬅️ servis çağrısı
+        if (mounted) setItems(data as CompletedDonation[]);
       } catch (e) {
         console.error("Biten bağışlar alınamadı:", e);
       } finally {
@@ -32,9 +32,8 @@ export default function BitenBagisKampanyalari() {
 
   const formatDate = (ts?: any) => {
     if (!ts) return "-";
-    // Firestore Timestamp ise:
-    const date = typeof ts.toDate === "function" ? ts.toDate() : new Date(ts);
-    return date.toLocaleDateString("tr-TR"); // Örn: 13.10.2025
+    const date = typeof ts?.toDate === "function" ? ts.toDate() : new Date(ts);
+    return date.toLocaleDateString("tr-TR");
   };
 
   return (

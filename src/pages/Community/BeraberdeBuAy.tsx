@@ -1,42 +1,44 @@
-// src\pages\Community\BeraberdeBuAy.tsx
-import { useState } from "react";
+// src/pages/Community/BeraberdeBuAy.tsx
+import { useMemo, useState } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
-import { db } from "../../services/firebase";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { COLLECTIONS } from "../../constants/firestore";
 import { useNotifier } from "../../contexts/NotificationContext";
+import { communityService } from "@/data/container"; // UI sadece servis kullanır
 
 const monthKey = () => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM
 };
 
 export default function BeraberdeBuAy() {
   const [photoUrl, setPhotoUrl] = useState("");
+  const [imgError, setImgError] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const notifier = useNotifier();
 
+  const trimmed = photoUrl.trim();
+  const isHttpUrl = /^https?:\/\//i.test(trimmed);
+  const previewOk = isHttpUrl && !imgError;
+  const isValid = useMemo(() => isHttpUrl, [isHttpUrl]);
+
+  const resetForm = () => {
+    setPhotoUrl("");
+    setImgError("");
+  };
+
   const onSave = async () => {
-    const trimmed = photoUrl.trim();
-    if (!trimmed) {
-      notifier.showWarning("Fotoğraf URL'si gerekli.");
+    if (!isValid) {
+      notifier.showWarning("Geçerli bir fotoğraf URL’si girin (https:// ile başlamalı).");
       return;
     }
     try {
       setSaving(true);
       const key = monthKey();
-      await setDoc(
-        doc(db, COLLECTIONS.HIGHLIGHTS, key),
-        {
-          monthKey: key,
-          photoUrl: trimmed,
-          status: "active",
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-      setPhotoUrl("");
+      // ÖNEMLİ: Artık overwrite etmiyoruz, her eklemede yeni belge oluşturuyoruz.
+      await communityService.addHighlightUrl({
+        monthKey: key,
+        photoUrl: trimmed,
+      });
+      resetForm();
       notifier.showSuccess("Kaydedildi.");
     } catch (e) {
       console.error(e);
@@ -46,8 +48,6 @@ export default function BeraberdeBuAy() {
     }
   };
 
-  const previewOk = /^https?:\/\//i.test(photoUrl.trim());
-
   return (
     <Box sx={{ backgroundColor: "#E8E4E4", borderRadius: 3, p: 6 }}>
       <Typography variant="h6" fontWeight={700} mb={2} color="#5B3B3B">
@@ -56,9 +56,12 @@ export default function BeraberdeBuAy() {
 
       <TextField
         label="Fotoğraf URL'si"
-        placeholder="https://…"
+        placeholder="https://…/gorsel.jpg"
         value={photoUrl}
-        onChange={(e) => setPhotoUrl(e.target.value)}
+        onChange={(e) => {
+          setImgError("");
+          setPhotoUrl(e.target.value);
+        }}
         fullWidth
         sx={{ mb: 2 }}
       />
@@ -73,13 +76,15 @@ export default function BeraberdeBuAy() {
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
+          mb: imgError ? 0.5 : 2,
         }}
       >
         {previewOk ? (
           <img
-            src={photoUrl.trim()}
+            src={trimmed}
             alt="Bu Ay"
             style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
+            onError={() => setImgError("Görsel yüklenemedi. URL’yi kontrol edin.")}
           />
         ) : (
           <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
@@ -92,11 +97,15 @@ export default function BeraberdeBuAy() {
         )}
       </Box>
 
+      {!!imgError && (
+        <Typography sx={{ color: "#a33", fontSize: 12, mb: 2 }}>{imgError}</Typography>
+      )}
+
       <Button
         variant="contained"
         size="large"
         onClick={onSave}
-        disabled={saving || !photoUrl.trim()}
+        disabled={saving || !isValid}
         sx={{
           mt: 6,
           px: 4,

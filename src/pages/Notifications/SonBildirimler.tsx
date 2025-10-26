@@ -1,43 +1,29 @@
-// src\pages\Notifications\SonBildirimler.tsx
+// src/pages/Notifications/SonBildirimler.tsx
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  Typography,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  IconButton,
-  Box,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  MenuItem,
+  Card, CardContent, Typography, TableContainer, Table, TableHead, TableRow,
+  TableCell, TableBody, IconButton, Box, Dialog, DialogTitle, DialogContent,
+  DialogActions, Button, TextField, RadioGroup, FormControlLabel, Radio, MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  fetchNotificationsPage,
-  updateNotification,
-  deleteNotificationById,
-  fetchCampaignOptions,
-  listenNotificationsRealtime,
-  notificationsBus,
-  getNotificationById,
-} from "../../services/notificationsService";
-import type { NotificationTarget, NotificationDoc } from "../../services/notificationsService";
+import { notificationsService } from "@/data/container";
+
+/** UI’da ihtiyaç duyduğumuz minimal tip */
+type NotificationTarget =
+  | { type: "all" }
+  | { type: "campaign"; campaignId: string; campaignName?: string };
+
+type UINotification = {
+  id: string;
+  title: string;
+  body: string;
+  target: NotificationTarget;
+  scheduledAt?: any; // Firestore Timestamp | Date
+};
 
 export default function SonBildirimler() {
-  const [rows, setRows] = useState<NotificationDoc[]>([]);
+  const [rows, setRows] = useState<UINotification[]>([]);
   const [cursor, setCursor] = useState<any>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,52 +41,58 @@ export default function SonBildirimler() {
   const [editWho, setEditWho] = useState<"all" | "campaign">("all");
   const [editCampaignId, setEditCampaignId] = useState("");
 
-  // kampanyalar
+  // kampanya seçenekleri
   useEffect(() => {
     let alive = true;
     (async () => {
-      const cs = await fetchCampaignOptions();
-      if (alive) setCampaigns(cs);
+      try {
+        const cs = await notificationsService.fetchCampaignOptions();
+        if (alive) setCampaigns(cs);
+      } catch {
+        // sessiz düş
+      }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // realtime — en güncel 20; StrictMode çift mount korumalı
+  // realtime (son 20) — StrictMode çift mount korumalı
   useEffect(() => {
     if (mountedOnce.current) return;
     mountedOnce.current = true;
 
-    const off = listenNotificationsRealtime((live) => {
+    const off = notificationsService.listenRecent(20, (live) => {
       setRows((prev) => {
-        const map = new Map<string, NotificationDoc>();
-        for (const it of live) map.set(it.id, it);
+        const map = new Map<string, UINotification>();
+        for (const it of live as UINotification[]) map.set(it.id, it);
         for (const it of prev) if (!map.has(it.id)) map.set(it.id, it);
         return Array.from(map.values());
       });
-    }, 20);
+    });
 
-    return () => {
-      off();
-      mountedOnce.current = false;
-    };
-  }, []);
-
-  // yeni oluşturulanda sıfırla + tepeye ekle
-  useEffect(() => {
-    const handler = async (ev: Event) => {
+    // yeni oluşturulanda üstte göster (container.events varsa)
+    const createdHandler = async (ev: Event) => {
       const id = (ev as CustomEvent).detail?.id as string | undefined;
       setCursor(undefined);
       setHasMore(true);
       setError(null);
       if (id) {
-        const doc = await getNotificationById(id);
-        if (doc) {
-          setRows((prev) => (prev.find((x) => x.id === id) ? prev : [doc, ...prev]));
-        }
+        try {
+          const doc = await notificationsService.getById(id);
+          if (doc) {
+            setRows((prev) => (prev.find((x) => x.id === id) ? prev : [doc as UINotification, ...prev]));
+          }
+        } catch {}
       }
     };
-    notificationsBus.addEventListener("created", handler as EventListener);
-    return () => notificationsBus.removeEventListener("created", handler as EventListener);
+    notificationsService.events?.addEventListener?.("created", createdHandler as EventListener);
+
+    return () => {
+      off?.();
+      notificationsService.events?.removeEventListener?.("created", createdHandler as EventListener);
+      mountedOnce.current = false;
+    };
   }, []);
 
   // sayfalı yükleme
@@ -108,11 +100,11 @@ export default function SonBildirimler() {
     if (loading || !hasMore || !!error) return;
     setLoading(true);
     try {
-      const { items, cursor: c } = await fetchNotificationsPage(20, cursor);
+      const { items, cursor: c } = await notificationsService.fetchPage(20, cursor);
       setRows((r) => {
-        const map = new Map<string, NotificationDoc>();
+        const map = new Map<string, UINotification>();
         for (const it of r) map.set(it.id, it);
-        for (const it of items) map.set(it.id, it);
+        for (const it of items as UINotification[]) map.set(it.id, it);
         return Array.from(map.values());
       });
       setCursor(c);
@@ -126,7 +118,9 @@ export default function SonBildirimler() {
     }
   }, [cursor, error, hasMore, loading]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   // sonsuz kaydırma
   useEffect(() => {
@@ -134,24 +128,30 @@ export default function SonBildirimler() {
     const el = sentinelRef.current;
     if (!el) return;
 
-    const io = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) void load();
-    }, { rootMargin: "200px" });
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) void load();
+      },
+      { rootMargin: "200px" }
+    );
 
     io.observe(el);
     return () => io.disconnect();
   }, [error, hasMore, load]);
 
-  const formatType = (t: NotificationTarget) => (t.type === "all" ? "Genel" : `Kampanya Özel — ${t.campaignName}`);
+  const formatType = (t: NotificationTarget) =>
+    t.type === "all" ? "Genel" : `Kampanya Özel — ${t.campaignName || t.campaignId}`;
 
-  const openEdit = (row: NotificationDoc) => {
+  const openEdit = (row: UINotification) => {
     setEditId(row.id);
     setEditTitle(row.title);
     setEditBody(row.body);
     if (row.target.type === "all") {
-      setEditWho("all"); setEditCampaignId("");
+      setEditWho("all");
+      setEditCampaignId("");
     } else {
-      setEditWho("campaign"); setEditCampaignId(row.target.campaignId);
+      setEditWho("campaign");
+      setEditCampaignId(row.target.campaignId);
     }
     setOpen(true);
   };
@@ -167,23 +167,31 @@ export default function SonBildirimler() {
             campaignName: campaigns.find((c) => c.id === editCampaignId)?.name || "",
           };
 
-    await updateNotification(editId, { title: editTitle.trim(), body: editBody.trim(), target });
+    await notificationsService.update(editId, {
+      title: editTitle.trim(),
+      body: editBody.trim(),
+      target,
+    });
 
     setRows((r) =>
-      r.map((x) => (x.id === editId ? { ...x, title: editTitle.trim(), body: editBody.trim(), target } : x))
+      r.map((x) =>
+        x.id === editId ? { ...x, title: editTitle.trim(), body: editBody.trim(), target } : x
+      )
     );
     setOpen(false);
   };
 
   const handleDelete = async (id: string) => {
-    await deleteNotificationById(id);
+    await notificationsService.delete(id);
     setRows((r) => r.filter((x) => x.id !== id));
   };
 
   return (
     <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", mt: 3 }}>
       <CardContent>
-        <Typography variant="h6" fontWeight={700} mb={2}>Son Bildirimler</Typography>
+        <Typography variant="h6" fontWeight={700} mb={2}>
+          Son Bildirimler
+        </Typography>
 
         {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
 
@@ -202,7 +210,9 @@ export default function SonBildirimler() {
                 <TableRow key={row.id} hover>
                   <TableCell sx={{ maxWidth: 420 }}>
                     <Typography fontWeight={700}>{row.title}</Typography>
-                    <Typography color="text.secondary" noWrap>{row.body}</Typography>
+                    <Typography color="text.secondary" noWrap>
+                      {row.body}
+                    </Typography>
                   </TableCell>
                   <TableCell>{formatType(row.target)}</TableCell>
                   <TableCell>
@@ -228,9 +238,15 @@ export default function SonBildirimler() {
         </TableContainer>
 
         {!loading && rows.length === 0 && !error && (
-          <Typography mt={2} color="text.secondary">Henüz bildirim yok.</Typography>
+          <Typography mt={2} color="text.secondary">
+            Henüz bildirim yok.
+          </Typography>
         )}
-        {loading && <Typography mt={2} color="text.secondary">Yükleniyor…</Typography>}
+        {loading && (
+          <Typography mt={2} color="text.secondary">
+            Yükleniyor…
+          </Typography>
+        )}
       </CardContent>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
