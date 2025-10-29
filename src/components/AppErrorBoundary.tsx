@@ -1,12 +1,8 @@
-// src/components/AppErrorBoundary.tsx
 import React from "react";
 import { Box, Button, Typography, Stack } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
-
-// Eğer DI container kullanıyorsan şu şekilde de alabilirsin:
-// import { auth, nukeFirestoreCache } from "@/data/container";
 import { auth } from "@/services/firebase";
 import { nukeFirestoreCache } from "@/services/firebase";
 
@@ -20,40 +16,34 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
   }
 
   componentDidCatch(error: any, info: any) {
-    // eslint-disable-next-line no-console
-    console.error("[AppErrorBoundary]", error, info);
+    // Prod’da sessiz; istersen Sentry vb. entegre edebilirsin
+    // console.error("[AppErrorBoundary]", error, info);
   }
 
-  // (Opsiyonel) Rota değişince toparlan: parent <Routes> içine konduysa,
-  // key değişimlerinde boundary yeniden mount edilir; ama yine de güvence:
-  componentDidUpdate(_: any, prevState: State) {
-    // farklı bir çocuk ağacı render edildiyse ve önce hata vardıysa toparlan
+  componentDidUpdate(_: any, __: State) {
     if (this.state.hasError && this.props.children !== (this as any)._prevChildren) {
       this.setState({ hasError: false, err: undefined, detailsOpen: false });
     }
     (this as any)._prevChildren = this.props.children;
   }
 
-  handleRetry = () => {
+  private handleRetry = () => {
     this.setState({ hasError: false, err: undefined, detailsOpen: false });
   };
 
-  handleReload = () => {
+  private handleReload = () => {
     location.reload();
   };
 
-  handleClearCacheAndReload = async () => {
+  private handleClearCacheAndReload = async () => {
     try {
       await nukeFirestoreCache();
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn("Önbellek temizlenirken uyarı:", e);
     } finally {
       location.reload();
     }
   };
 
-  handleSignOut = async () => {
+  private handleSignOut = async () => {
     try {
       await auth.signOut();
     } finally {
@@ -68,7 +58,6 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
       (this.state.err?.message && String(this.state.err.message)) ||
       String(this.state.err || "Bilinmeyen hata");
 
-    // Firebase permission/claim vb. ipuçları
     const maybePerm =
       /permission|denied|unauthorized|not\s*authorized/i.test(msg) ||
       this.state.err?.code === "permission-denied";
@@ -79,18 +68,14 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
           Bir şeyler ters gitti.
         </Typography>
 
-        <Typography sx={{ mb: 2, whiteSpace: "pre-wrap" }}>
-          {msg}
-        </Typography>
+        <Typography sx={{ mb: 2, whiteSpace: "pre-wrap" }}>{msg}</Typography>
 
         {maybePerm && (
           <Typography sx={{ mb: 2 }} color="text.secondary">
-            Bu hata genellikle yetki/rol/claim veya güvenlik kuralı nedeniyle oluşur. Gerekirse yeniden
-            oturum açmayı deneyebilirsin.
+            Bu hata genellikle yetki/rol/claim veya güvenlik kuralı nedeniyle oluşur.
           </Typography>
         )}
 
-        {/* Hata detaylarını aç/kapa */}
         <details
           open={this.state.detailsOpen}
           onToggle={(e) => this.setState({ detailsOpen: (e.target as HTMLDetailsElement).open })}
@@ -109,19 +94,10 @@ export default class AppErrorBoundary extends React.Component<React.PropsWithChi
           <Button variant="outlined" onClick={this.handleReload}>
             Sayfayı Yenile
           </Button>
-          <Button
-            variant="outlined"
-            onClick={this.handleClearCacheAndReload}
-            startIcon={<CleaningServicesIcon />}
-          >
+          <Button variant="outlined" onClick={this.handleClearCacheAndReload} startIcon={<CleaningServicesIcon />}>
             Önbelleği Temizle & Yenile
           </Button>
-          <Button
-            color="warning"
-            variant="text"
-            onClick={this.handleSignOut}
-            startIcon={<LogoutIcon />}
-          >
+          <Button color="warning" variant="text" onClick={this.handleSignOut} startIcon={<LogoutIcon />}>
             Oturumu Kapat
           </Button>
         </Stack>

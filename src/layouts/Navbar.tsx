@@ -1,4 +1,4 @@
-// src/layout/Navbar.tsx
+// src\layouts\Navbar.tsx
 import { useEffect, useState } from "react";
 import { Box, Menu, MenuItem, Typography, Badge } from "@mui/material";
 import { Person, ArrowDropDown, Notifications } from "@mui/icons-material";
@@ -7,12 +7,9 @@ import { useNavigate } from "react-router-dom";
 import { auth, teamService, donationsService } from "@/data/container";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import SearchDonations from "@/components/SearchDonations";
+import { NAVBAR_HEIGHT, SIDEBAR_WIDTH } from "@/constants/dimensions";
 
 type MemberInfo = { name: string; role?: string } | null;
-
-// ⬇️ Tek yerde tanımla ve export et
-export const NAVBAR_HEIGHT = 64;
-export const SIDEBAR_WIDTH = 240;
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -20,8 +17,7 @@ export default function Navbar() {
   // profil menüsü
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const profileOpen = Boolean(anchorEl);
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) =>
-    setAnchorEl(event.currentTarget);
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
   // kullanıcı bilgisi
@@ -46,9 +42,7 @@ export default function Navbar() {
 
   // tamamlanan bağış bildirimleri
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
-  const [completed, setCompleted] = useState<{ id: string; name: string }[]>(
-    []
-  );
+  const [completed, setCompleted] = useState<{ id: string; name: string }[]>([]);
   const notifOpen = Boolean(notifAnchor);
   const handleNotifOpen = (e: React.MouseEvent<SVGSVGElement>) =>
     setNotifAnchor(e.currentTarget as any);
@@ -66,9 +60,9 @@ export default function Navbar() {
       sx={{
         position: "fixed",
         top: 0,
-        left: SIDEBAR_WIDTH,     // ⬅️ tek yerden
+        left: SIDEBAR_WIDTH,
         right: 0,
-        height: NAVBAR_HEIGHT,   // ⬅️ tek yerden
+        height: NAVBAR_HEIGHT,
         backgroundColor: "#FFFFFF",
         borderBottom: "0.5px solid #F5F2F2",
         display: "flex",

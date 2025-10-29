@@ -1,4 +1,4 @@
-// src/data/repositories/community.repo.ts
+// src\data\repositories\community.repo.ts
 import {
   addDoc,
   collection,
@@ -19,6 +19,7 @@ import {
 import { COLLECTIONS } from "@/constants/firestore";
 import type { CommunityPost, Highlight } from "@/domain/community/post.types";
 import { toCommunityPost, toHighlight } from "@/domain/community/post.mapper";
+import { PAGE_20, RECENT_10 } from "@/constants/pagination";
 
 export interface ICommunityRepo {
   // highlights
@@ -88,7 +89,7 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
 
   listenLatestHighlights(limitN: number, cb: (rows: Highlight[]) => void): Unsubscribe {
     const colRef = collection(this.db, COLLECTIONS.HIGHLIGHTS);
-    const n = Number.isFinite(limitN) && limitN > 0 ? limitN : 12;
+    const n = Number.isFinite(limitN) && limitN > 0 ? limitN : RECENT_10;
 
     return onSnapshot(
       colRef,
@@ -144,7 +145,7 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
   }
 
   listenPosts(limitN: number, cb: (rows: CommunityPost[]) => void): Unsubscribe {
-    const safeLimit = Number.isFinite(limitN) && limitN > 0 ? limitN : 20;
+    const safeLimit = Number.isFinite(limitN) && limitN > 0 ? limitN : PAGE_20; // ⬅️ sabit
     const qy = query(
       collection(this.db, COLLECTIONS.COMMUNITY_POSTS),
       orderBy("createdAt", "desc"),

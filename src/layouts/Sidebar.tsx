@@ -1,7 +1,8 @@
-// src/layout/Sidebar.tsx
+// src\layouts\Sidebar.tsx
 import { Box } from "@mui/material";
 import { navItems } from "./ui";
 import { COLORS } from "@/constants/colors";
+import { SIDEBAR_WIDTH } from "@/constants/dimensions";
 import logo from "../assets/beraber_logo2.png";
 
 type Props = {
@@ -22,7 +23,7 @@ export default function Sidebar({ activePath, onNavigate }: Props) {
   return (
     <Box
       sx={{
-        width: 240,
+        width: SIDEBAR_WIDTH,
         backgroundColor: COLORS.lightBg,
         p: 3,
         display: "flex",

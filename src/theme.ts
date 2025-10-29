@@ -1,3 +1,4 @@
+// src\theme.ts
 import { createTheme } from "@mui/material/styles";
 import { COLORS } from "./constants/colors";
 

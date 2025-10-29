@@ -2,15 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\assets",
     "\\src\\components",
+    "\\src\\constants",
     "\\src\\data",
+    "\\src\\data\\repositories",
+    "\\src\\data\\services",
     "\\src\\domain",
-    "\\src\\domain\\community",
-    "\\src\\domain\\donations",
     "\\src\\layouts",
-    "\\src\\types"
+    "\\src\\pages"
   ],
-  "SelectedNode": "\\src\\data\\services\\team.service.ts",
+  "SelectedNode": "\\src\\data\\repositories\\donations.repo.ts",
   "PreviewInSolutionExplorer": false
 }

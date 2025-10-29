@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate:team": "node scripts/migrate-team-members.mjs",
+    "claims": "node scripts/set-claims.mjs",
+    "claims:sync": "node scripts/sync-claims-from-team.mjs",
+    "admin:set": "node scripts/set-admin.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

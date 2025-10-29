@@ -1,4 +1,3 @@
-// src\data\repositories\notifications.repo.ts
 import {
   addDoc,
   collection,
@@ -6,7 +5,7 @@ import {
   doc,
   getDoc,
   getDocs,
-  limit,
+  limit as qLimit,
   onSnapshot,
   orderBy,
   query,
@@ -17,19 +16,17 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/firestore";
+import { RECENT_10, PAGE_20 } from "@/constants/pagination";
 
 export interface INotificationsRepo {
-  // create / update / delete
   create(input: { title: string; body: string; target: any; scheduledAt?: any }): Promise<{ id: string }>;
   update(id: string, patch: any): Promise<void>;
   delete(id: string): Promise<void>;
 
-  // listing
   fetchCampaignOptions(): Promise<{ id: string; name: string; status: string }[]>;
   listenRealtime(cb: (rows: any[]) => void, limitN: number): Unsubscribe;
   fetchPage(limitN: number, cursor?: any): Promise<{ items: any[]; cursor?: any }>;
 
-  // read single
   getById(id: string): Promise<any | null>;
 }
 
@@ -41,7 +38,6 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
       title: (input.title ?? "").trim(),
       body: (input.body ?? "").trim(),
       target: input.target ?? null,
-      // Firestore timestamp (server tarafında atılmasını istiyorsan UI’dan null bırakabilirsin)
       scheduledAt: input.scheduledAt ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -66,19 +62,16 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
     const snap = await getDocs(collection(this.db, COLLECTIONS.DONATIONS));
     return snap.docs.map((d) => {
       const data = d.data() as any;
-      return {
-        id: d.id,
-        name: data?.name ?? "(İsimsiz)",
-        status: data?.status ?? "",
-      };
+      return { id: d.id, name: data?.name ?? "(İsimsiz)", status: data?.status ?? "" };
     });
   }
 
   listenRealtime(cb: (rows: any[]) => void, limitN: number) {
+    const n = Number.isFinite(limitN) && limitN > 0 ? limitN : RECENT_10;
     const qy = query(
       collection(this.db, COLLECTIONS.NOTIFICATIONS),
       orderBy("createdAt", "desc"),
-      limit(limitN)
+      qLimit(n)
     );
     return onSnapshot(
       qy,
@@ -91,10 +84,11 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
   }
 
   async fetchPage(limitN: number, cursor?: any) {
+    const n = Number.isFinite(limitN) && limitN > 0 ? limitN : PAGE_20;
     let qy = query(
       collection(this.db, COLLECTIONS.NOTIFICATIONS),
       orderBy("createdAt", "desc"),
-      limit(limitN)
+      qLimit(n)
     );
     if (cursor) qy = query(qy, startAfter(cursor));
     const snap = await getDocs(qy);
@@ -105,6 +99,6 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
 
   async getById(id: string) {
     const s = await getDoc(doc(this.db, COLLECTIONS.NOTIFICATIONS, id));
-    return s.exists() ? ({ id: s.id, ...(s.data() as any) }) : null;
+    return s.exists() ? { id: s.id, ...(s.data() as any) } : null;
   }
 }

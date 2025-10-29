@@ -1,8 +1,9 @@
-// src/layout/AdminLayout.tsx
+// src\layouts\AdminLayout.tsx
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Box } from "@mui/material";
-import Navbar, { NAVBAR_HEIGHT } from "./Navbar"; // ⬅️ yükseklik burada
+import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
+import { NAVBAR_HEIGHT } from "@/constants/dimensions";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function AdminLayout() {
           component="main"
           role="main"
           sx={{
-            pt: `${NAVBAR_HEIGHT + 12}px`, // ⬅️ 64 + 12 = 76px güvenlik payı
+            pt: `${NAVBAR_HEIGHT + 12}px`,
             px: 4,
             pb: 4,
             width: "100%",

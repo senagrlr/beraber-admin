@@ -1,4 +1,3 @@
-// src/pages/LoginPage.tsx
 import React, { useState } from "react";
 import {
   signInWithEmailAndPassword,
@@ -20,6 +19,8 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("🟢 Login attempt:", email);
+
     if (!email || !password) {
       notifier.showWarning("Lütfen e-posta ve şifre girin.");
       return;
@@ -27,10 +28,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // 1) Firebase Auth
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-
-      // 2) Whitelist (team_members)
       const normalized = (cred.user.email || "").trim().toLowerCase();
       const ok = await teamService.isEmailAllowed(normalized);
 
@@ -40,7 +38,6 @@ export default function LoginPage() {
         return;
       }
 
-      // 3) Başarılı
       window.location.href = "/dashboard";
     } catch (error: any) {
       let msg = "Giriş başarısız.";
@@ -93,16 +90,13 @@ export default function LoginPage() {
 
   return (
     <div className="login-container">
-      {/* Sol Kısım */}
       <div className="login-left">
         <img src={logo} alt="Beraber Logo" className="logo" />
         <h1 className="brand">Beraber</h1>
       </div>
 
-      {/* Dikey Çizgi */}
       <div className="divider"></div>
 
-      {/* Sağ Kısım */}
       <div className="login-right">
         <div className="login-card">
           <h2>Hoş Geldiniz</h2>

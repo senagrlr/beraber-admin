@@ -1,4 +1,3 @@
-// src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
@@ -10,36 +9,41 @@ import CommunityPage from "./pages/Community/CommunityPage";
 import NotificationsPage from "./pages/Notifications/NotificationsPage";
 import SettingsPage from "./pages/Settings/SettingsPage";
 import ReportsPage from "./pages/Reports/ReportsPage";
+import { ROUTES } from "@/constants/routes";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <AppErrorBoundary>
+      <Routes>
+        {/* 🔑 Giriş sayfası (korumasız) */}
+        <Route path={ROUTES.login} element={<LoginPage />} />
 
-      <Route
-        element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        {/* 🔒 Tüm yönetici rotaları */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path={ROUTES.root} element={<Navigate to={ROUTES.dashboard} replace />} />
+          <Route path={ROUTES.dashboard} element={<DashboardPage />} />
 
-        {/* Bağışlar */}
-        <Route path="/donations" element={<DonationsPage />} />
-        <Route path="/donations/:id" element={<DonationDetail />} />
+          {/* Bağışlar */}
+          <Route path={ROUTES.donations} element={<DonationsPage />} />
+          <Route path={ROUTES.donationDetail} element={<DonationDetail />} />
 
-        {/* Diğer sayfalar */}
-        <Route path="/community" element={<CommunityPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
+          {/* Diğer sayfalar */}
+          <Route path={ROUTES.community} element={<CommunityPage />} />
+          <Route path={ROUTES.notifications} element={<NotificationsPage />} />
+          <Route path={ROUTES.settings} element={<SettingsPage />} />
+          <Route path={ROUTES.reports} element={<ReportsPage />} />
 
-        {/* 404 → dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Route>
-    </Routes>
+          {/* 404 fallback */}
+          <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />
+        </Route>
+      </Routes>
+    </AppErrorBoundary>
   );
 }
-

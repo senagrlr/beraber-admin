@@ -1,4 +1,3 @@
-// src/data/repositories/todos.repo.ts
 import {
   addDoc,
   collection,
@@ -9,10 +8,12 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  limit as qLimit,
   type Firestore,
   type Unsubscribe,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/firestore";
+import { PAGE_20 } from "@/constants/pagination";
 
 // UI’nin beklediği basit Todo tipi
 export type Todo = {
@@ -24,16 +25,9 @@ export type Todo = {
 };
 
 export interface ITodosRepo {
-  /** Yalnızca tamamlanmamış görevleri dinle (realtime) */
   listenActive(cb: (rows: Todo[]) => void): Unsubscribe;
-
-  /** Tüm görevleri (aktif + tamamlanmış) dinle (realtime) */
   listenAll(cb: (rows: Todo[]) => void): Unsubscribe;
-
-  /** Yeni todo ekle (başlangıçta done=false) */
   add(text: string): Promise<void>;
-
-  /** done flag’ini tersine çevir (UI toggle) */
   toggle(todo: Todo): Promise<void>;
 }
 
@@ -44,7 +38,8 @@ export class FirestoreTodosRepo implements ITodosRepo {
     const qy = query(
       collection(this.db, COLLECTIONS.TODOS),
       where("done", "==", false),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      qLimit(PAGE_20) // anlık dinlemeyi sınırlayalım
     );
     return onSnapshot(qy, (snap) => {
       const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Todo[];
@@ -55,7 +50,8 @@ export class FirestoreTodosRepo implements ITodosRepo {
   listenAll(cb: (rows: Todo[]) => void): Unsubscribe {
     const qy = query(
       collection(this.db, COLLECTIONS.TODOS),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      qLimit(PAGE_20)
     );
     return onSnapshot(qy, (snap) => {
       const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Todo[];

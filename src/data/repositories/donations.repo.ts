@@ -1,4 +1,4 @@
-// src/data/repositories/donations.repo.ts
+// src\data\repositories\donations.repo.ts
 import {
   addDoc,
   collection,
@@ -12,7 +12,7 @@ import {
   query,
   where,
   orderBy,
-  limit,
+  limit as qLimit, // ⬅️ alias
   startAt,
   endAt,
   type Unsubscribe,
@@ -29,6 +29,7 @@ import {
 import { COLLECTIONS } from "@/constants/firestore";
 import { toDonation, fromDonationWrite } from "@/domain/donations/donation.mapper";
 import type { Donation, DonationWrite } from "@/domain/donations/donation.schema";
+
 
 export interface IDonationsRepo {
   add(input: DonationWrite, uid: string): Promise<string>;
@@ -148,13 +149,13 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
 
   /* ---------------- Realtime listeler ---------------- */
 
-  // ✅ DÜZELTİLDİ: status IN + createdAt DESC
+  // ✅ status IN + createdAt DESC
   listenRecent(limitN: number, cb: (rows: Donation[]) => void): Unsubscribe {
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "in", ["active", "completed", "photo_pending"]),
       orderBy("createdAt", "desc"),
-      limit(limitN)
+      qLimit(limitN) // ⬅️ alias kullan
     );
     return onSnapshot(
       qy,
@@ -174,7 +175,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc"),
-      limit(limitN)
+      qLimit(limitN) // ⬅️
     );
     return onSnapshot(
       qy,
@@ -238,7 +239,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc"),
-      limit(limitN)
+      qLimit(limitN) // ⬅️
     );
     try {
       const snap = await getDocs(qy);
@@ -301,7 +302,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       orderBy("nameLower", "asc"),
       startAt(q),
       endAt(q + "\uf8ff"),
-      limit(limitN)
+      qLimit(limitN) // ⬅️
     );
     try {
       const snap = await getDocs(qy);
@@ -327,7 +328,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       where("status", "in", ["completed", "photo_pending"]),
       where("photoUrl", "==", ""), // Boş string mantığını koruyoruz
       orderBy("updatedAt", "desc"),
-      limit(limitN)
+      qLimit(limitN) // ⬅️
     );
     try {
       const snap = await getDocs(qy);
