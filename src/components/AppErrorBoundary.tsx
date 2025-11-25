@@ -1,3 +1,4 @@
+// src\components\AppErrorBoundary.tsx
 import React from "react";
 import { Box, Button, Typography, Stack } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";

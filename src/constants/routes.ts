@@ -1,3 +1,4 @@
+// \src\constants\routes.ts
 // Merkezi rota sabitleri ve path yardımcıları
 // Not: "as const" sayesinde type-safe kullanım mümkün
 
