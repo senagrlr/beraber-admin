@@ -1,37 +1,50 @@
-// src\pages\Donations\BagisEkle.tsx
-import { useMemo, useState } from "react";
+// src/pages/Donations/BagisEkle.tsx
+import { useMemo, useState, useEffect } from "react";
 import {
-  Card, CardContent, Typography, Box,
-  TextField, Button, MenuItem, Select, InputLabel, FormControl
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
-// ⬇️ 'auth' import'u eklendi
 import { donationsService, auth } from "@/data/container";
 import { useNotifier } from "../../contexts/NotificationContext";
-// ⬇️ YENİ IMPORT: Merkezi kategori listesini domain'den al
 import { DONATION_CATEGORIES } from "@/domain/donations/donation.schema";
+import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
 
-// ⬇️ SİLİNDİ: Bu eski, tekrar eden listeye artık gerek yok.
-// const CATEGORIES = [ ... ];
+type AllowedMime = (typeof ALLOWED_IMAGE_MIME)[number];
 
 export default function BagisEkle() {
   const [donationName, setDonationName] = useState("");
   const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
   const [text, setText] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+
+  // Dosya + preview
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [selectedFileName, setSelectedFileName] = useState<string>("");
 
   const [imgError, setImgError] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const notifier = useNotifier();
 
-  const trimmedUrl = photoUrl.trim();
-  const previewOk = /^https?:\/\//i.test(trimmedUrl) && !imgError;
+  // ObjectURL temizliği
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const isValid = useMemo(() => {
     const nm = donationName.trim();
     const amt = Number(amount);
-    // ⬇️ Schema ile uyumlu hale getirildi (min 3 karakter)
     return nm.length >= 3 && !!category && Number.isFinite(amt) && amt > 0;
   }, [donationName, category, amount]);
 
@@ -40,17 +53,59 @@ export default function BagisEkle() {
     setCategory("");
     setAmount("");
     setText("");
-    setPhotoUrl("");
+    setFile(null);
+    setPreviewUrl("");
+    setSelectedFileName("");
     setImgError("");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    if (!f) {
+      setFile(null);
+      setPreviewUrl("");
+      setSelectedFileName("");
+      setImgError("");
+      return;
+    }
+
+    // MIME kontrolü
+    const mime = f.type as AllowedMime;
+    if (!ALLOWED_IMAGE_MIME.includes(mime)) {
+      setImgError("Sadece JPG, PNG veya WEBP görsel yükleyebilirsin.");
+      setFile(null);
+      setPreviewUrl("");
+      setSelectedFileName("");
+      return;
+    }
+
+    // Boyut kontrolü
+    if (f.size > IMAGE_MAX_BYTES) {
+      const mb = (IMAGE_MAX_BYTES / (1024 * 1024)).toFixed(1);
+      setImgError(`Görsel en fazla ${mb} MB olabilir.`);
+      setFile(null);
+      setPreviewUrl("");
+      setSelectedFileName("");
+      return;
+    }
+
+    // Her yeni seçimde eski preview URL'ini temizle
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+
+    setFile(f);
+    setSelectedFileName(f.name);
+    setImgError("");
+    setPreviewUrl(URL.createObjectURL(f));
   };
 
   const handleAddDonation = async () => {
     if (!isValid) {
-      notifier.showWarning("Lütfen tüm zorunlu alanları (İsim en az 3 karakter) geçerli şekilde doldurun.");
+      notifier.showWarning(
+        "Lütfen tüm zorunlu alanları (İsim en az 3 karakter) geçerli şekilde doldurun."
+      );
       return;
     }
 
-    // 1. Kullanıcıyı al
     const user = auth.currentUser;
     if (!user) {
       notifier.showError("Oturumunuzun süresi dolmuş. Lütfen yeniden giriş yapın.");
@@ -60,25 +115,27 @@ export default function BagisEkle() {
     try {
       setSaving(true);
 
-      // 2. 'uid' parametresini gönder
-      const { id } = await donationsService.create({
-        name: donationName.trim(),
-        category,
-        amount: Number(amount),
-        description: text.trim(),
-      }, user.uid);
+      // 1) Bağışı kaydet (fotoğrafsız)
+      const { id } = await donationsService.create(
+        {
+          name: donationName.trim(),
+          category,
+          amount: Number(amount),
+          description: text.trim(),
+        },
+        user.uid
+      );
 
-      if (trimmedUrl) {
-        // 3. Fotoğrafı 'setPhotoUrl' ile ekle
-        await donationsService.setPhotoUrl(id, trimmedUrl);
+      // 2) Dosya seçildiyse Storage'a yükle ve photoUrl alanını doldur
+      if (file) {
+        await donationsService.uploadPhoto(id, file);
       }
 
       resetForm();
       notifier.showSuccess("Bağış başarıyla eklendi!");
     } catch (err: any) {
       console.error("Bağış ekleme hatası:", err);
-      const errorMsg = (err instanceof Error) ? err.message : "Bilinmeyen bir hata oluştu.";
-      // Zod hatası veya 'indexOf' hatası burada gösterilecek
+      const errorMsg = err instanceof Error ? err.message : "Bilinmeyen bir hata oluştu.";
       notifier.showError(`Bağış eklenemedi: ${errorMsg}`);
     } finally {
       setSaving(false);
@@ -99,18 +156,26 @@ export default function BagisEkle() {
           Yeni Bağış Ekle
         </Typography>
 
-        {/* Fotoğraf URL alanı + önizleme */}
-        <TextField
-          label="Fotoğraf URL'si (opsiyonel)"
-          placeholder="https://…/gorsel.jpg"
-          value={photoUrl}
-          onChange={(e) => {
-            setImgError("");
-            setPhotoUrl(e.target.value);
-          }}
-          fullWidth
-          sx={{ mb: 1.5 }}
-        />
+        {/* Dosya seçimi */}
+        <Box sx={{ mb: 1.5 }}>
+          <Button
+            variant="outlined"
+            component="label"
+            sx={{
+              textTransform: "none",
+              borderRadius: 999,
+              px: 3,
+              mb: 1,
+            }}
+          >
+            Görsel Seç
+            <input type="file" accept={ALLOWED_IMAGE_MIME.join(",")} hidden onChange={handleFileChange} />
+          </Button>
+
+          <Typography variant="body2" sx={{ color: "#5B3B3B" }}>
+            {selectedFileName ? `Seçilen dosya: ${selectedFileName}` : "Henüz dosya seçilmedi."}
+          </Typography>
+        </Box>
 
         <Box
           sx={{
@@ -128,28 +193,25 @@ export default function BagisEkle() {
             textAlign: "center",
           }}
         >
-          {previewOk ? (
+          {previewUrl ? (
             <img
-              src={trimmedUrl}
+              src={previewUrl}
               alt="Bağış görseli"
               style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
-              onError={() => setImgError("Görsel yüklenemedi. URL’yi kontrol et.")}
             />
           ) : (
             <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
-              Fotoğraf URL'si gir (opsiyonel)
+              Görsel seç (opsiyonel)
               <br />
               <Typography component="span" variant="body2" color="gray">
-                Örn: https://…/gorsel.jpg
+                Örn: JPG, PNG veya WEBP
               </Typography>
             </Typography>
           )}
         </Box>
 
         {!!imgError && (
-          <Typography sx={{ color: "#a33", fontSize: 12, mt: -1, mb: 1.5 }}>
-            {imgError}
-          </Typography>
+          <Typography sx={{ color: "#a33", fontSize: 12, mt: -1, mb: 1.5 }}>{imgError}</Typography>
         )}
 
         <FormControl fullWidth sx={{ mb: 2 }}>
@@ -160,9 +222,10 @@ export default function BagisEkle() {
             label="Kategori seç"
             onChange={(e) => setCategory(e.target.value)}
           >
-            {/* ⬇️ DÜZELTME: İmport edilen 'DONATION_CATEGORIES' listesini kullan */}
             {DONATION_CATEGORIES.map((c) => (
-              <MenuItem key={c} value={c}>{c}</MenuItem>
+              <MenuItem key={c} value={c}>
+                {c}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -173,7 +236,6 @@ export default function BagisEkle() {
             fullWidth
             value={donationName}
             onChange={(e) => setDonationName(e.target.value)}
-            // ⬇️ Hata mesajını doğrudan UI'da göstermek için eklendi
             error={donationName.trim().length > 0 && donationName.trim().length < 3}
             helperText={
               donationName.trim().length > 0 && donationName.trim().length < 3

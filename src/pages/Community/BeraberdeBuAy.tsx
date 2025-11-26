@@ -1,8 +1,9 @@
 // src/pages/Community/BeraberdeBuAy.tsx
-import { useMemo, useState } from "react";
-import { Box, Typography, Button, TextField } from "@mui/material";
+import { useMemo, useState, useEffect } from "react";
+import { Box, Typography, Button } from "@mui/material";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { communityService } from "@/data/container"; // UI sadece servis kullanır
+import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
 
 const monthKey = () => {
   const d = new Date();
@@ -10,36 +11,74 @@ const monthKey = () => {
 };
 
 export default function BeraberdeBuAy() {
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [imgError, setImgError] = useState<string>("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const notifier = useNotifier();
 
-  const trimmed = photoUrl.trim();
-  const isHttpUrl = /^https?:\/\//i.test(trimmed);
-  const previewOk = isHttpUrl && !imgError;
-  const isValid = useMemo(() => isHttpUrl, [isHttpUrl]);
+  // Seçilen dosya değiştikçe local preview URL’sini güncelle
+  useEffect(() => {
+    if (!file) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
+
+  const isValid = useMemo(() => !!file && !uploadError, [file, uploadError]);
 
   const resetForm = () => {
-    setPhotoUrl("");
-    setImgError("");
+    setFile(null);
+    setFileName(null);
+    setUploadError(null);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const f = event.target.files?.[0] ?? null;
+    if (!f) return;
+    setUploadError(null);
+
+    if (!ALLOWED_IMAGE_MIME.includes(f.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
+      setUploadError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
+      setFile(null);
+      setFileName(null);
+      return;
+    }
+
+    if (f.size > IMAGE_MAX_BYTES) {
+      setUploadError("Dosya boyutu en fazla 5MB olabilir.");
+      setFile(null);
+      setFileName(null);
+      return;
+    }
+
+    setFile(f);
+    setFileName(f.name);
   };
 
   const onSave = async () => {
-    if (!isValid) {
-      notifier.showWarning("Geçerli bir fotoğraf URL’si girin (https:// ile başlamalı).");
+    if (!file || !isValid) {
+      notifier.showWarning("Lütfen önce geçerli bir görsel seçin.");
       return;
     }
     try {
       setSaving(true);
       const key = monthKey();
-      // ÖNEMLİ: Artık overwrite etmiyoruz, her eklemede yeni belge oluşturuyoruz.
-      await communityService.addHighlightUrl({
+
+      await communityService.addHighlightFile({
         monthKey: key,
-        photoUrl: trimmed,
+        file,
       });
+
       resetForm();
-      notifier.showSuccess("Kaydedildi.");
+      notifier.showSuccess("Fotoğraf kaydedildi.");
     } catch (e) {
       console.error(e);
       notifier.showError("Kaydedilemedi.");
@@ -54,17 +93,25 @@ export default function BeraberdeBuAy() {
         Beraber’de Bu Ay
       </Typography>
 
-      <TextField
-        label="Fotoğraf URL'si"
-        placeholder="https://…/gorsel.jpg"
-        value={photoUrl}
-        onChange={(e) => {
-          setImgError("");
-          setPhotoUrl(e.target.value);
+      <Button
+        variant="outlined"
+        component="label"
+        disabled={saving}
+        sx={{
+          mb: 2,
+          borderRadius: 3,
+          textTransform: "none",
+          fontWeight: 600,
         }}
-        fullWidth
-        sx={{ mb: 2 }}
-      />
+      >
+        {fileName ? `Seçilen dosya: ${fileName}` : "Görsel ekle ( opsiyonel )"}
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          onChange={handleFileChange}
+        />
+      </Button>
 
       <Box
         sx={{
@@ -76,29 +123,30 @@ export default function BeraberdeBuAy() {
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
-          mb: imgError ? 0.5 : 2,
+          mb: uploadError ? 0.5 : 2,
         }}
       >
-        {previewOk ? (
+        {previewUrl ? (
           <img
-            src={trimmed}
+            src={previewUrl}
             alt="Bu Ay"
             style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
-            onError={() => setImgError("Görsel yüklenemedi. URL’yi kontrol edin.")}
           />
         ) : (
           <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
-            Fotoğraf URL’si gir
+            Görsel ekle
             <br />
             <Typography component="span" color="#9f8e8a" fontSize={12}>
-              500 × 500 piksel
+              Öneri: 500 × 500 piksel
             </Typography>
           </Typography>
         )}
       </Box>
 
-      {!!imgError && (
-        <Typography sx={{ color: "#a33", fontSize: 12, mb: 2 }}>{imgError}</Typography>
+      {!!uploadError && (
+        <Typography sx={{ color: "#a33", fontSize: 12, mb: 2 }}>
+          {uploadError}
+        </Typography>
       )}
 
       <Button

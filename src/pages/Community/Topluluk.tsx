@@ -1,38 +1,74 @@
 // src/pages/Community/Topluluk.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { communityService } from "@/data/container";
+import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
 
 export default function Topluluk() {
   const [text, setText] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [imgError, setImgError] = useState<string>("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const notifier = useNotifier();
 
-  const trimmedUrl = photoUrl.trim();
-  const isHttpUrl = /^https?:\/\//i.test(trimmedUrl);
-  const previewOk = isHttpUrl && !imgError;
+  useEffect(() => {
+    if (!file) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
-  const isValid = useMemo(() => isHttpUrl, [isHttpUrl]);
+  const isValid = useMemo(() => !!file && !uploadError, [file, uploadError]);
 
   const resetForm = () => {
     setText("");
-    setPhotoUrl("");
-    setImgError("");
+    setFile(null);
+    setFileName(null);
+    setPreviewUrl(null);
+    setUploadError(null);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const f = event.target.files?.[0] ?? null;
+    if (!f) return;
+
+    setUploadError(null);
+
+    if (!ALLOWED_IMAGE_MIME.includes(f.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
+      setUploadError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
+      setFile(null);
+      setFileName(null);
+      return;
+    }
+
+    if (f.size > IMAGE_MAX_BYTES) {
+      setUploadError("Dosya boyutu en fazla 5MB olabilir.");
+      setFile(null);
+      setFileName(null);
+      return;
+    }
+
+    setFile(f);
+    setFileName(f.name);
   };
 
   const onSave = async () => {
-    if (!isValid) {
-      notifier.showWarning("Geçerli bir fotoğraf URL’si girin (https:// ile başlamalı).");
+    if (!file || !isValid) {
+      notifier.showWarning("Lütfen önce geçerli bir görsel seçin.");
       return;
     }
     try {
       setSaving(true);
-      await communityService.addCommunityPost({
-        text: text.trim(),
-        photoUrl: trimmedUrl,
+      await communityService.addCommunityPostFile({
+        text: text.trim() || undefined,
+        file,
       });
       resetForm();
       notifier.showSuccess("Gönderi başarıyla yayınlandı!");
@@ -46,22 +82,36 @@ export default function Topluluk() {
 
   return (
     <Box sx={{ backgroundColor: "#E8E4E4", borderRadius: 3, p: 6 }}>
-      <Typography variant="h6" fontWeight={700} mb={2} color="#5B3B3B" sx={{ textAlign: "center" }}>
+      <Typography
+        variant="h6"
+        fontWeight={700}
+        mb={2}
+        color="#5B3B3B"
+        sx={{ textAlign: "center" }}
+      >
         Topluluk
       </Typography>
 
-      {/* Foto URL */}
-      <TextField
-        label="Fotoğraf URL'si"
-        placeholder="https://…/gorsel.jpg"
-        value={photoUrl}
-        onChange={(e) => {
-          setImgError("");
-          setPhotoUrl(e.target.value);
+      {/* Foto dosyası seçme */}
+      <Button
+        variant="outlined"
+        component="label"
+        disabled={saving}
+        sx={{
+          mb: 2,
+          borderRadius: 3,
+          textTransform: "none",
+          fontWeight: 600,
         }}
-        fullWidth
-        sx={{ mb: 2 }}
-      />
+      >
+        {fileName ? `Seçilen dosya: ${fileName}` : "Görsel ekle ( opsiyonel )"}
+        <input
+          type="file"
+          hidden
+          accept="image/*"
+          onChange={handleFileChange}
+        />
+      </Button>
 
       {/* Önizleme */}
       <Box
@@ -74,19 +124,18 @@ export default function Topluluk() {
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
-          mb: imgError ? 0.5 : 2,
+          mb: uploadError ? 0.5 : 2,
         }}
       >
-        {previewOk ? (
+        {previewUrl ? (
           <img
-            src={trimmedUrl}
+            src={previewUrl}
             alt="Topluluk"
             style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "cover" }}
-            onError={() => setImgError("Görsel yüklenemedi. URL’yi kontrol edin.")}
           />
         ) : (
           <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
-            Fotoğraf URL’si gir
+            Görsel ekle
             <br />
             <Typography component="span" color="#9f8e8a" fontSize={12}>
               Öneri: 500 × 500
@@ -94,8 +143,10 @@ export default function Topluluk() {
           </Typography>
         )}
       </Box>
-      {!!imgError && (
-        <Typography sx={{ color: "#a33", fontSize: 12, mb: 2 }}>{imgError}</Typography>
+      {!!uploadError && (
+        <Typography sx={{ color: "#a33", fontSize: 12, mb: 2 }}>
+          {uploadError}
+        </Typography>
       )}
 
       {/* Metin alanı */}

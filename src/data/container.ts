@@ -1,4 +1,5 @@
 // src/data/container.ts
+// src/data/container.ts
 import { auth, db, storage } from "@/services/firebase";
 
 // ─── Repos ────────────────────────────────────────────────────────────────
@@ -45,11 +46,24 @@ export const usersService = {
 // Settings sayfası: teamsService (eski ad)
 export const teamsService = teamService;
 
-// ─── Mini IoC Container (EKLENDİ) ─────────────────────────────────────────
+// ─── Mini IoC Container ───────────────────────────────────────────────────
 type Tokens =
-  | "auth" | "firestore" | "storage"
-  | "donationsRepo" | "communityRepo" | "usersRepo" | "notificationsRepo" | "teamRepo" | "todosRepo" | "userStatsRepo"
-  | "donationsService" | "communityService" | "notificationsService" | "teamService" | "todosService" | "userStatsService";
+  | "auth"
+  | "firestore"
+  | "storage"
+  | "donationsRepo"
+  | "communityRepo"
+  | "usersRepo"
+  | "notificationsRepo"
+  | "teamRepo"
+  | "todosRepo"
+  | "userStatsRepo"
+  | "donationsService"
+  | "communityService"
+  | "notificationsService"
+  | "teamService"
+  | "todosService"
+  | "userStatsService";
 
 const registry = new Map<Tokens, unknown>();
 
@@ -85,5 +99,5 @@ function createContainer() {
 export type AppContainer = ReturnType<typeof createContainer>;
 export const container: AppContainer = createContainer();
 
-// Diğer dosyaların kullandığı named export’ları da aynen dışarı verelim:
+// Eski importları kırmamak için:
 export { auth, db, storage };

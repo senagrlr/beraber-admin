@@ -5,9 +5,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
   Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Avatar
 } from "@mui/material";
-import { Edit, Delete } from "@mui/icons-material";
+import { Edit, Delete, AddPhotoAlternate } from "@mui/icons-material";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { communityService } from "@/data/container";
+import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
 
 // Domain tipin yoksa bu hafif tip işini görür:
 type PostRow = {
@@ -32,7 +33,11 @@ export default function ToplulukEnSon() {
       setRows(r as PostRow[]);
       setLoading(false);
     });
-    return () => { try { unsub?.(); } catch {} };
+    return () => {
+      try {
+        unsub?.();
+      } catch {}
+    };
   }, []);
 
   const onEdit = (r: PostRow) => {
@@ -68,6 +73,37 @@ export default function ToplulukEnSon() {
   };
 
   const short = (s?: string) => (s || "—").slice(0, 120);
+
+  const handleUploadFile = () => {
+    if (!editId) return;
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0] as File | undefined;
+      if (!file) return;
+
+      if (!ALLOWED_IMAGE_MIME.includes(file.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
+        notifier.showError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
+        return;
+      }
+      if (file.size > IMAGE_MAX_BYTES) {
+        notifier.showError("Dosya boyutu en fazla 5MB olabilir.");
+        return;
+      }
+
+      try {
+        const url = await communityService.updateCommunityPostFile(editId, file);
+        setEditUrl(url);
+        notifier.showSuccess("Fotoğraf güncellendi.");
+      } catch (err) {
+        console.error("[ToplulukEnSon] updateCommunityPostFile error:", err);
+        notifier.showError("Fotoğraf yüklenemedi.");
+      }
+    };
+    input.click();
+  };
 
   return (
     <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -141,6 +177,16 @@ export default function ToplulukEnSon() {
               placeholder="https://…"
               fullWidth
             />
+
+            <Button
+              variant="outlined"
+              startIcon={<AddPhotoAlternate />}
+              onClick={handleUploadFile}
+              sx={{ justifySelf: "flex-start", textTransform: "none" }}
+            >
+              Görsel ekle
+            </Button>
+
             {editUrl && (
               <Box sx={{ borderRadius: 2, overflow: "hidden", background: "#faf7f7", height: 180 }}>
                 <img src={editUrl} alt="Önizleme" style={{ width: "100%", height: "100%", objectFit: "cover" }} />

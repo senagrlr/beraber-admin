@@ -2,12 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\domain\\donations",
-    "\\src\\domain\\users",
-    "\\src\\pages\\Settings",
-    "\\src\\services",
-    "\\src\\types"
+    "\\src\\components",
+    "\\src\\layouts",
+    "\\src\\pages",
+    "\\src\\pages\\Community",
+    "\\src\\pages\\Dashboard",
+    "\\src\\pages\\Donations",
+    "\\src\\pages\\Notifications",
+    "\\src\\pages\\Reports"
   ],
-  "SelectedNode": "\\functions",
+  "SelectedNode": "\\src\\constants\\dimensions.ts",
   "PreviewInSolutionExplorer": false
 }

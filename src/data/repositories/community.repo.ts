@@ -104,7 +104,11 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
         });
         cb(all.slice(0, n));
       },
-      (err) => console.error("[CommunityRepo.listenLatestHighlights] error:", err)
+      (err) => {
+        console.error("[CommunityRepo.listenLatestHighlights] error:", err);
+        // Hata olsa bile UI'nin yükleniyor durumunda kalmaması için
+        cb([]);
+      }
     );
   }
 
@@ -145,7 +149,7 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
   }
 
   listenPosts(limitN: number, cb: (rows: CommunityPost[]) => void): Unsubscribe {
-    const safeLimit = Number.isFinite(limitN) && limitN > 0 ? limitN : PAGE_20; // ⬅️ sabit
+    const safeLimit = Number.isFinite(limitN) && limitN > 0 ? limitN : PAGE_20;
     const qy = query(
       collection(this.db, COLLECTIONS.COMMUNITY_POSTS),
       orderBy("createdAt", "desc"),
@@ -154,7 +158,11 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
     return onSnapshot(
       qy,
       (snap) => cb(snap.docs.map((d) => toCommunityPost(d.id, d.data()))),
-      (err) => console.error("[CommunityRepo.listenPosts] error:", err)
+      (err) => {
+        console.error("[CommunityRepo.listenPosts] error:", err);
+        // Hata durumunda da callback'i boş listeyle çağır
+        cb([]);
+      }
     );
   }
 

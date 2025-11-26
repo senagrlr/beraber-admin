@@ -4,9 +4,11 @@ import {
   Card, CardContent, Typography, Box, IconButton,
   Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Tooltip
 } from "@mui/material";
-import { Edit, Delete } from "@mui/icons-material";
+import { Edit, Delete, AddPhotoAlternate } from "@mui/icons-material";
 import { communityService } from "@/data/container";
 import type { Highlight } from "@/domain/community/post.types";
+import { useNotifier } from "../../contexts/NotificationContext";
+import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
 
 export default function BeraberdeBuAyEnSon() {
   const [rows, setRows] = useState<Highlight[]>([]);
@@ -14,6 +16,7 @@ export default function BeraberdeBuAyEnSon() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState("");
+  const notifier = useNotifier();
 
   useEffect(() => {
     // Sadece SON 10 kayıt
@@ -21,7 +24,11 @@ export default function BeraberdeBuAyEnSon() {
       setRows(r);
       setLoading(false);
     });
-    return () => { try { unsub?.(); } catch {} };
+    return () => {
+      try {
+        unsub?.();
+      } catch {}
+    };
   }, []);
 
   const onEdit = (row: Highlight) => {
@@ -40,6 +47,37 @@ export default function BeraberdeBuAyEnSon() {
     await communityService.deleteHighlight(id);
   };
 
+  const handleUploadFile = () => {
+    if (!editId) return;
+
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0] as File | undefined;
+      if (!file) return;
+
+      if (!ALLOWED_IMAGE_MIME.includes(file.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
+        notifier.showError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
+        return;
+      }
+      if (file.size > IMAGE_MAX_BYTES) {
+        notifier.showError("Dosya boyutu en fazla 5MB olabilir.");
+        return;
+      }
+
+      try {
+        const url = await communityService.uploadHighlightPhoto(editId, file);
+        setEditUrl(url);
+        notifier.showSuccess("Fotoğraf güncellendi.");
+      } catch (err) {
+        console.error("[BeraberdeBuAyEnSon] uploadHighlightPhoto error:", err);
+        notifier.showError("Fotoğraf yüklenemedi.");
+      }
+    };
+    input.click();
+  };
+
   return (
     <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
       <CardContent>
@@ -56,8 +94,8 @@ export default function BeraberdeBuAyEnSon() {
           <Box
             sx={{
               position: "relative",
-              height: 180,                // <-- Kartın yüksekliği sabit
-              overflow: "hidden",         // dışarı taşma yok
+              height: 180,
+              overflow: "hidden",
             }}
           >
             <Box
@@ -65,7 +103,7 @@ export default function BeraberdeBuAyEnSon() {
                 position: "absolute",
                 inset: 0,
                 display: "flex",
-                flexWrap: "nowrap",       // <-- tek satır, alt satıra düşme yok
+                flexWrap: "nowrap",
                 gap: 2,
                 overflowX: "auto",
                 overflowY: "hidden",
@@ -131,6 +169,16 @@ export default function BeraberdeBuAyEnSon() {
               fullWidth
               placeholder="https://…"
             />
+
+            <Button
+              variant="outlined"
+              startIcon={<AddPhotoAlternate />}
+              onClick={handleUploadFile}
+              sx={{ justifySelf: "flex-start", textTransform: "none" }}
+            >
+              Görsel ekle
+            </Button>
+
             {editUrl && (
               <Box sx={{ borderRadius: 2, overflow: "hidden", background: "#faf7f7", height: 180 }}>
                 <img src={editUrl} alt="Önizleme" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
