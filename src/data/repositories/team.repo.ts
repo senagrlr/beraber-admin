@@ -37,19 +37,29 @@ export type TeamMember = {
 /** Firestore dokümanı (id hariç) */
 export type TeamMemberDoc = Omit<TeamMember, "id">;
 
-export interface ITeamRepo {
-  upsertByEmailLower(emailLower: string, payload: Omit<TeamMember, "id" | "createdAt" | "updatedAt">): Promise<void>;
+/** Yazma / güncelleme / silme operasyonları */
+export interface ITeamWriter {
+  upsertByEmailLower(
+    emailLower: string,
+    payload: Omit<TeamMember, "id" | "createdAt" | "updatedAt">
+  ): Promise<void>;
   update(id: string, patch: Partial<Omit<TeamMember, "id">>): Promise<void>;
   delete(id: string): Promise<void>;
+}
+
+/** Okuma / listeleme / arama operasyonları */
+export interface ITeamReader {
   listActive(limitN: number): Promise<TeamMember[]>;
   listenActive(limitN: number, cb: (rows: TeamMember[]) => void): Unsubscribe;
   findByEmailLower(emailLower: string): Promise<TeamMember | null>;
 }
 
+/** Geriye dönük uyum için birleşik interface */
+export interface ITeamRepo extends ITeamWriter, ITeamReader {}
+
 export class FirestoreTeamRepo implements ITeamRepo {
   constructor(private db: Firestore) {}
 
-  /** ID=emailLower olan dokümana merge eder. Yeni oluşturuluyorsa createdAt set edilir. */
   async upsertByEmailLower(
     emailLower: string,
     payload: Omit<TeamMember, "id" | "createdAt" | "updatedAt">

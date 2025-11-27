@@ -45,26 +45,35 @@ export interface DonationDoc {
   updatedAt?: any;
 }
 
-export interface IDonationsRepo {
-  add(input: DonationWrite, uid: string): Promise<string>;
+/** Sadece okuma / dinleme / listeleme tarafı */
+export interface IDonationsReader {
   getById(id: string): Promise<Donation | null>;
   listenById(id: string, cb: (row: Donation | null) => void): Unsubscribe;
-  update(id: string, patch: Partial<DonationWrite>): Promise<void>;
-  setPhotoUrl(id: string, url: string): Promise<void>;
-  uploadPhoto(id: string, file: File): Promise<string>;
-  deleteById(id: string): Promise<void>;
   listenRecent(limitN: number, cb: (rows: Donation[]) => void): Unsubscribe;
   listenRecentCompleted(
     limitN: number,
     cb: (rows: Array<{ id: string; name: string }>) => void
   ): Unsubscribe;
+  fetchCompleted(limitN: number): Promise<Array<{ id: string; name?: string }>>;
+  fetchCompletedCampaigns(limitN: number): Promise<Array<{ id: string; name?: string }>>;
+  searchByName(q: string, limitN: number): Promise<Array<{ id: string; name: string }>>;
+  fetchPhotoPending(limitN: number): Promise<Array<{ id: string; name?: string }>>;
+}
+
+/** Yazma / güncelleme / silme operasyonları */
+export interface IDonationsWriter {
+  add(input: DonationWrite, uid: string): Promise<string>;
+  update(id: string, patch: Partial<DonationWrite>): Promise<void>;
+  setPhotoUrl(id: string, url: string): Promise<void>;
+  uploadPhoto(id: string, file: File): Promise<string>;
+  deleteById(id: string): Promise<void>;
+}
+
+/** Raporlama / dashboard odaklı metotlar */
+export interface IDonationsReporter {
   fetchMonthToDateTotal(): Promise<number>;
   fetchYearToDateTotal(year: number): Promise<number>;
-  fetchCompleted(limitN: number): Promise<Array<{ id: string; name?: string }>>;
   fetchCategoryRatios(): Promise<Array<{ name: string; value: number; color: string }>>;
-  searchByName(q: string, limitN: number): Promise<Array<{ id: string; name: string }>>;
-  fetchCompletedCampaigns(limitN: number): Promise<Array<{ id: string; name?: string }>>;
-  fetchPhotoPending(limitN: number): Promise<Array<{ id: string; name?: string }>>;
   fetchDashboardCounts(): Promise<{
     total: number;
     active: number;
@@ -72,6 +81,12 @@ export interface IDonationsRepo {
     photoPending: number;
   }>;
 }
+
+/** Geriye dönük uyum için birleşik interface */
+export interface IDonationsRepo
+  extends IDonationsReader,
+    IDonationsWriter,
+    IDonationsReporter {}
 
 export class FirestoreDonationsRepo implements IDonationsRepo {
   constructor(private db: Firestore, private storage: FirebaseStorage) {}
@@ -152,7 +167,6 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       firestorePatch.description = (patch.description ?? "").trim();
     }
 
-    // photoUrl bu metodla güncellenmez
     delete (firestorePatch as any).photoUrl;
 
     await updateDoc(doc(this.db, COLLECTIONS.DONATIONS, id), {
@@ -169,11 +183,8 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
   }
 
   async uploadPhoto(id: string, file: File): Promise<string> {
-    // Dosya adını güvenli hâle getir (sadece harf, rakam ve nokta kalsın)
     const originalName = file.name || "file";
     const sanitizedName = originalName.replace(/[^a-zA-Z0-9.]/g, "_");
-
-    // Benzersiz ve güvenli dosya adı
     const safeFileName = Date.now().toString() + "_" + sanitizedName;
 
     const storageRef = ref(this.storage, `donations/${id}/${safeFileName}`);
@@ -190,9 +201,8 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     } as Partial<DonationDoc>);
   }
 
-  /* ---------------- Realtime listeler ---------------- */
+  // ───────────── Realtime listeler ─────────────
 
-  // status IN + createdAt DESC
   listenRecent(limitN: number, cb: (rows: Donation[]) => void): Unsubscribe {
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
@@ -245,7 +255,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     );
   }
 
-  /* ---------------- Rapor / Yardımcılar ---------------- */
+  // ───────────── Rapor / Yardımcılar ─────────────
 
   async fetchMonthToDateTotal(): Promise<number> {
     const now = new Date();

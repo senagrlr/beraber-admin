@@ -29,22 +29,43 @@ export interface NotificationRecord {
   updatedAt?: any;
 }
 
-export interface INotificationsRepo {
-  create(input: { title: string; body: string; target: any; scheduledAt?: any }): Promise<{ id: string }>;
+/** Yazma / güncelleme / silme tarafı */
+export interface INotificationsWriter {
+  create(input: {
+    title: string;
+    body: string;
+    target: any;
+    scheduledAt?: any;
+  }): Promise<{ id: string }>;
   update(id: string, patch: any): Promise<void>;
   delete(id: string): Promise<void>;
+}
 
+/** Listeleme / okuma / pagination tarafı */
+export interface INotificationsReader {
   fetchCampaignOptions(): Promise<{ id: string; name: string; status: string }[]>;
   listenRealtime(cb: (rows: any[]) => void, limitN: number): Unsubscribe;
-  fetchPage(limitN: number, cursor?: any): Promise<{ items: any[]; cursor?: any }>;
-
+  fetchPage(
+    limitN: number,
+    cursor?: any
+  ): Promise<{ items: any[]; cursor?: any }>;
   getById(id: string): Promise<any | null>;
 }
+
+/** Geriye dönük uyum için birleşik interface */
+export interface INotificationsRepo
+  extends INotificationsWriter,
+    INotificationsReader {}
 
 export class FirestoreNotificationsRepo implements INotificationsRepo {
   constructor(private db: Firestore) {}
 
-  async create(input: { title: string; body: string; target: any; scheduledAt?: any }) {
+  async create(input: {
+    title: string;
+    body: string;
+    target: any;
+    scheduledAt?: any;
+  }) {
     const payload: NotificationRecord = {
       title: (input.title ?? "").trim(),
       body: (input.body ?? "").trim(),

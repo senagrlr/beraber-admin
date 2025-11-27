@@ -17,12 +17,20 @@ import { COLLECTIONS } from "@/constants/firestore";
 import { PAGE_20 } from "@/constants/pagination";
 import type { Todo, TodoDoc } from "@/domain/todos/todo.schema";
 
-export interface ITodosRepo {
+/** Okuma / dinleme tarafı */
+export interface ITodosReader {
   listenActive(cb: (rows: Todo[]) => void): Unsubscribe;
   listenAll(cb: (rows: Todo[]) => void): Unsubscribe;
+}
+
+/** Yazma / güncelleme tarafı */
+export interface ITodosWriter {
   add(text: string): Promise<void>;
   toggle(todo: Todo): Promise<void>;
 }
+
+/** Geriye dönük uyum için birleşik interface */
+export interface ITodosRepo extends ITodosReader, ITodosWriter {}
 
 export class FirestoreTodosRepo implements ITodosRepo {
   constructor(private db: Firestore) {}

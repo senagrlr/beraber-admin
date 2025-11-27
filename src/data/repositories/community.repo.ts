@@ -41,15 +41,17 @@ export interface CommunityPostDoc {
   updatedAt?: any;
 }
 
-export interface ICommunityRepo {
-  // highlights
+/** Sadece highlight ile ilgili operasyonlar */
+export interface ICommunityHighlightsRepo {
   setMonthlyHighlightUrl(monthKey: string, url: string): Promise<void>;
   addHighlightUrl(input: { monthKey: string; photoUrl: string }): Promise<string>;
   updateMonthlyHighlight(idOrMonthKey: string, patch: { photoUrl?: string }): Promise<void>;
   listenLatestHighlights(limitN: number, cb: (rows: Highlight[]) => void): Unsubscribe;
   deleteHighlight(idOrMonthKey: string): Promise<void>;
+}
 
-  // posts
+/** Sadece community post operasyonları */
+export interface ICommunityPostsRepo {
   addPostUrl(input: {
     text?: string;
     photoUrl: string;
@@ -60,6 +62,9 @@ export interface ICommunityRepo {
   listenPosts(limitN: number, cb: (rows: CommunityPost[]) => void): Unsubscribe;
   deletePost(id: string): Promise<void>;
 }
+
+/** Geriye dönük uyum için birleşik interface */
+export interface ICommunityRepo extends ICommunityHighlightsRepo, ICommunityPostsRepo {}
 
 export class FirestoreCommunityRepo implements ICommunityRepo {
   constructor(private db: Firestore) {}
@@ -139,7 +144,6 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
       },
       (err) => {
         console.error("[CommunityRepo.listenLatestHighlights] error:", err);
-        // Hata olsa bile UI'nin yükleniyor durumunda kalmaması için
         cb([]);
       }
     );
@@ -203,7 +207,6 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
       },
       (err) => {
         console.error("[CommunityRepo.listenPosts] error:", err);
-        // Hata durumunda da callback'i boş listeyle çağır
         cb([]);
       }
     );
