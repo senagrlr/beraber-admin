@@ -4,8 +4,8 @@ import { Box, Button, Typography, Stack } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
-import { auth } from "@/services/firebase";
-import { nukeFirestoreCache } from "@/services/firebase";
+import { auth } from "@/infrastructure/firebase";
+import { nukeFirestoreCache } from "@/infrastructure/firebase";
 
 type State = { hasError: boolean; err?: any; detailsOpen: boolean };
 

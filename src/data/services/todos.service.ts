@@ -1,6 +1,7 @@
 // src/data/services/todos.service.ts
 import type { ITodosRepo } from "@/data/repositories/todos.repo";
-import type { Todo } from "@/types/Todo";
+import type { Todo } from "@/domain/todos/todo.schema";
+
 
 export class TodosService {
   constructor(private repo: ITodosRepo) {}

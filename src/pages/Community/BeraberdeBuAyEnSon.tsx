@@ -1,14 +1,25 @@
 // src/pages/Community/BeraberdeBuAyEnSon.tsx
 import { useEffect, useState } from "react";
 import {
-  Card, CardContent, Typography, Box, IconButton,
-  Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Tooltip
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
+  Button,
+  Tooltip,
 } from "@mui/material";
 import { Edit, Delete, AddPhotoAlternate } from "@mui/icons-material";
 import { communityService } from "@/data/container";
 import type { Highlight } from "@/domain/community/post.types";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
+import { RECENT_HIGHLIGHTS_LIMIT } from "@/constants/limits";
 
 export default function BeraberdeBuAyEnSon() {
   const [rows, setRows] = useState<Highlight[]>([]);
@@ -19,11 +30,13 @@ export default function BeraberdeBuAyEnSon() {
   const notifier = useNotifier();
 
   useEffect(() => {
-    // Sadece SON 10 kayıt
-    const unsub = communityService.listenLatestHighlights(10, (r) => {
-      setRows(r);
-      setLoading(false);
-    });
+    const unsub = communityService.listenLatestHighlights(
+      RECENT_HIGHLIGHTS_LIMIT,
+      (r) => {
+        setRows(r);
+        setLoading(false);
+      }
+    );
     return () => {
       try {
         unsub?.();
@@ -39,7 +52,9 @@ export default function BeraberdeBuAyEnSon() {
 
   const onSave = async () => {
     if (!editId) return;
-    await communityService.updateMonthlyHighlight(editId, { photoUrl: editUrl.trim() || undefined });
+    await communityService.updateMonthlyHighlight(editId, {
+      photoUrl: editUrl.trim() || undefined,
+    });
     setOpen(false);
   };
 
@@ -57,7 +72,11 @@ export default function BeraberdeBuAyEnSon() {
       const file = e.target.files?.[0] as File | undefined;
       if (!file) return;
 
-      if (!ALLOWED_IMAGE_MIME.includes(file.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
+      if (
+        !ALLOWED_IMAGE_MIME.includes(
+          file.type as (typeof ALLOWED_IMAGE_MIME)[number]
+        )
+      ) {
         notifier.showError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
         return;
       }
@@ -82,15 +101,22 @@ export default function BeraberdeBuAyEnSon() {
     <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
       <CardContent>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Typography variant="h6" fontWeight={700}>Beraber’de Bu Ay (en son eklenenler)</Typography>
-          {!loading && <Typography variant="body2" color="text.secondary">Toplam {rows.length}</Typography>}
+          <Typography variant="h6" fontWeight={700}>
+            Beraber’de Bu Ay (en son eklenenler)
+          </Typography>
+          {!loading && (
+            <Typography variant="body2" color="text.secondary">
+              Toplam {rows.length}
+            </Typography>
+          )}
         </Box>
 
         {loading && <Typography color="text.secondary">Yükleniyor…</Typography>}
-        {!loading && rows.length === 0 && <Typography color="text.secondary">Henüz görsel yok.</Typography>}
+        {!loading && rows.length === 0 && (
+          <Typography color="text.secondary">Henüz görsel yok.</Typography>
+        )}
 
         {!loading && rows.length > 0 && (
-          // SABİT YÜKSEKLİK + YATAY SCROLL
           <Box
             sx={{
               position: "relative",
@@ -111,7 +137,10 @@ export default function BeraberdeBuAyEnSon() {
                 px: 0.5,
                 scrollSnapType: "x proximity",
                 "&::-webkit-scrollbar": { height: 8 },
-                "&::-webkit-scrollbar-thumb": { borderRadius: 8, background: "rgba(0,0,0,0.15)" },
+                "&::-webkit-scrollbar-thumb": {
+                  borderRadius: 8,
+                  background: "rgba(0,0,0,0.15)",
+                },
                 "&::-webkit-scrollbar-track": { background: "transparent" },
               }}
             >
@@ -133,22 +162,50 @@ export default function BeraberdeBuAyEnSon() {
                     <img
                       src={r.photoUrl}
                       alt=""
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
                     />
                   ) : (
-                    <Box sx={{ display: "grid", placeItems: "center", height: "100%", color: "text.secondary" }}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        placeItems: "center",
+                        height: "100%",
+                        color: "text.secondary",
+                      }}
+                    >
                       Foto yok
                     </Box>
                   )}
 
-                  <Box sx={{ position: "absolute", top: 6, right: 6, display: "flex", gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      display: "flex",
+                      gap: 0.5,
+                    }}
+                  >
                     <Tooltip title="Düzenle">
-                      <IconButton size="small" onClick={() => onEdit(r)} sx={{ bgcolor: "white" }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => onEdit(r)}
+                        sx={{ bgcolor: "white" }}
+                      >
                         <Edit fontSize="small" />
                       </IconButton>
                     </Tooltip>
                     <Tooltip title="Sil">
-                      <IconButton size="small" onClick={() => onDelete(r.id)} sx={{ bgcolor: "white" }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => onDelete(r.id)}
+                        sx={{ bgcolor: "white" }}
+                      >
                         <Delete fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -180,14 +237,31 @@ export default function BeraberdeBuAyEnSon() {
             </Button>
 
             {editUrl && (
-              <Box sx={{ borderRadius: 2, overflow: "hidden", background: "#faf7f7", height: 180 }}>
-                <img src={editUrl} alt="Önizleme" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  background: "#faf7f7",
+                  height: 180,
+                }}
+              >
+                <img
+                  src={editUrl}
+                  alt="Önizleme"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
               </Box>
             )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Vazgeç</Button>
-            <Button variant="contained" onClick={onSave}>Kaydet</Button>
+            <Button variant="contained" onClick={onSave}>
+              Kaydet
+            </Button>
           </DialogActions>
         </Dialog>
       </CardContent>

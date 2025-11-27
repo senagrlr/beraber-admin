@@ -1,7 +1,8 @@
-// src\data\services\team.service.ts
+// src/data/services/team.service.ts
 import type { ITeamRepo, TeamMember, TeamRole } from "@/data/repositories/team.repo";
 import { getAuth } from "firebase/auth";
 import type { Unsubscribe } from "firebase/firestore";
+import { TEAM_LIST_LIMIT } from "@/constants/limits";
 
 export interface AddTeamMemberInput {
   email: string;
@@ -24,14 +25,17 @@ export class TeamService {
       throw new Error("Geçerli bir e-posta girin.");
     }
 
-    await this.repo.upsertByEmailLower(emailLower, {
-      email: emailLower,
-      roles: (input.roles?.length ? input.roles : ["editor"]),
-      active: Boolean(input.active),
-      name: input.name ?? null,
-      phone: input.phone ?? null,
-      createdBy,
-    } as Omit<TeamMember, "id" | "createdAt" | "updatedAt">);
+    await this.repo.upsertByEmailLower(
+      emailLower,
+      {
+        email: emailLower,
+        roles: input.roles?.length ? input.roles : ["editor"],
+        active: Boolean(input.active),
+        name: input.name ?? null,
+        phone: input.phone ?? null,
+        createdBy,
+      } as Omit<TeamMember, "id" | "createdAt" | "updatedAt">
+    );
   }
 
   /** Whitelist kontrolü (geriye dönük kullanım için) */
@@ -46,15 +50,15 @@ export class TeamService {
     return this.repo.findByEmailLower(normalized);
   }
 
-  listenTeam(cb: (rows: TeamMember[]) => void, limitN = 100): Unsubscribe {
+  listenTeam(cb: (rows: TeamMember[]) => void, limitN = TEAM_LIST_LIMIT): Unsubscribe {
     return this.repo.listenActive(limitN, cb);
   }
 
-  listenAll(cb: (rows: TeamMember[]) => void, limitN = 100): Unsubscribe {
+  listenAll(cb: (rows: TeamMember[]) => void, limitN = TEAM_LIST_LIMIT): Unsubscribe {
     return this.repo.listenActive(limitN, cb);
   }
 
-  listActive(limitN = 100) {
+  listActive(limitN = TEAM_LIST_LIMIT) {
     return this.repo.listActive(limitN);
   }
 }

@@ -1,4 +1,4 @@
-// src\pages\Donations\DonationDetail.tsx
+// src/pages/Donations/DonationDetail.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -26,46 +26,54 @@ import {
   DONATION_CATEGORIES,
   type Donation,
 } from "@/domain/donations/donation.schema";
-import {
-  ALLOWED_IMAGE_MIME,
-  IMAGE_MAX_BYTES,
-} from "@/constants/validation";
+import { useImageValidation } from "@/hooks/useImageValidation";
+import { fmtMoney } from "@/utils/money";
 
-const fmtMoney = (n: number) =>
-  new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(
-    Number(n || 0)
-  );
-
+/** UI için Donation görünümü (şimdilik direkt Donation) */
 type DonationView = Donation;
 
-function toView(d: any | null): DonationView | null {
-  if (!d) return null;
-  return d as DonationView;
+/** Domain → View mapping (ileride genişleyebilir) */
+function toView(d: Donation | null | undefined): DonationView | null {
+  return d ?? null;
 }
 
-// Dosya doğrulama helper’ı
-type AllowedMime = (typeof ALLOWED_IMAGE_MIME)[number];
-function validateFile(file: File | null): string | null {
-  if (!file) return "Dosya seçilmedi.";
+/** useEffect için minimal notifier tipi */
+interface NotifierLike {
+  showError: (msg: string) => void;
+}
 
-  const mime = file.type as AllowedMime;
-  if (!ALLOWED_IMAGE_MIME.includes(mime)) {
-    return "Sadece JPG, PNG veya WEBP görsel yükleyebilirsin.";
+/** İlk detay fetch işini yapan helper (side-effect aynı, sadece ayrıştırıldı) */
+async function fetchDonationOnce(
+  id: string,
+  setDoc: (doc: DonationView | null) => void,
+  setLoading: (loading: boolean) => void,
+  notifier: NotifierLike
+) {
+  setLoading(true);
+  try {
+    const first = await donationsService.getById(id);
+    setDoc(toView(first));
+  } catch (e) {
+    console.error("Bağış detayı alınamadı:", e);
+    notifier.showError("Bağış detayı yüklenirken bir hata oluştu.");
+  } finally {
+    setLoading(false);
   }
-  if (file.size <= 0) {
-    return "Boş dosya seçilemez.";
-  }
-  if (file.size > IMAGE_MAX_BYTES) {
-    const mb = (IMAGE_MAX_BYTES / (1024 * 1024)).toFixed(1);
-    return `Görsel en fazla ${mb} MB olabilir.`;
-  }
-  return null;
+}
+
+/** Realtime dinleyiciyi kuran helper */
+function subscribeDonation(
+  id: string,
+  setDoc: (doc: DonationView | null) => void
+): () => void {
+  return donationsService.listenById(id, (d) => setDoc(toView(d)));
 }
 
 export default function DonationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const notifier = useNotifier();
+  const { validateImage } = useImageValidation();
 
   const [doc, setDoc] = useState<DonationView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,27 +96,22 @@ export default function DonationDetail() {
       navigate("/donations");
       return;
     }
-    let unsub: (() => void) | null = null;
 
-    (async () => {
-      setLoading(true);
-      try {
-        const first = await donationsService.getById(id);
-        setDoc(toView(first));
-      } catch (e) {
-        console.error("Bağış detayı alınamadı:", e);
-        notifier.showError("Bağış detayı yüklenirken bir hata oluştu.");
-      } finally {
-        setLoading(false);
-      }
+    let unsub: (() => void) | undefined;
 
-      unsub = donationsService.listenById(id, (d) => setDoc(toView(d)));
-    })();
+    const init = async () => {
+      await fetchDonationOnce(id, setDoc, setLoading, notifier);
+      unsub = subscribeDonation(id, setDoc);
+    };
+
+    void init();
 
     return () => {
       try {
         unsub?.();
-      } catch {}
+      } catch {
+        // subscriber cleanup sırasında hata yutulsun
+      }
     };
   }, [id, navigate, notifier]);
 
@@ -201,9 +204,7 @@ export default function DonationDetail() {
     }
     const amt = Number(editAmount);
     if (!Number.isFinite(amt) || amt <= 0) {
-      notifier.showWarning(
-        "Hedef miktar geçerli bir pozitif sayı olmalı."
-      );
+      notifier.showWarning("Hedef miktar geçerli bir pozitif sayı olmalı.");
       return;
     }
 
@@ -220,9 +221,7 @@ export default function DonationDetail() {
     } catch (err: any) {
       console.error("Bağış güncelleme hatası:", err);
       const errorMsg =
-        err instanceof Error
-          ? err.message
-          : "Bilinmeyen bir hata oluştu.";
+        err instanceof Error ? err.message : "Bilinmeyen bir hata oluştu.";
       notifier.showError(`Güncelleme başarısız: ${errorMsg}`);
     } finally {
       setSavingEdit(false);
@@ -235,11 +234,11 @@ export default function DonationDetail() {
 
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ALLOWED_IMAGE_MIME.join(",");
+    input.accept = "image/*";
     input.onchange = async (e: any) => {
       const file: File | null = e.target.files?.[0] ?? null;
 
-      const errMsg = validateFile(file);
+      const errMsg = validateImage(file);
       if (errMsg) {
         setImgErr(errMsg);
         notifier.showWarning(errMsg);
@@ -291,7 +290,8 @@ export default function DonationDetail() {
       ? doc.photoUrl.trim()
       : "";
   const photoUrl = rawPhotoUrl
-    ? `${rawPhotoUrl}${rawPhotoUrl.includes("?") ? "&" : "?"
+    ? `${rawPhotoUrl}${
+        rawPhotoUrl.includes("?") ? "&" : "?"
       }cb=${cacheBust || 0}`
     : "";
 
@@ -301,9 +301,7 @@ export default function DonationDetail() {
         Bağış Detay
       </Typography>
 
-      <Card
-        sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}
-      >
+      <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
         <CardContent>
           {/* Üst başlık + aksiyonlar */}
           <Box
@@ -313,11 +311,7 @@ export default function DonationDetail() {
             mb={1}
           >
             <Box display="flex" alignItems="center" gap={1.5}>
-              <Typography
-                variant="h6"
-                fontWeight={700}
-                color="#5B3B3B"
-              >
+              <Typography variant="h6" fontWeight={700} color="#5B3B3B">
                 {doc.name}
               </Typography>
               {statusChip}
@@ -363,11 +357,7 @@ export default function DonationDetail() {
 
           {/* Progress */}
           <Box mb={2}>
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              mb={0.5}
-            >
+            <Box display="flex" justifyContent="space-between" mb={0.5}>
               <Typography sx={{ fontSize: 12, color: "#6b4a4a" }}>
                 %{percent} tamamlandı
               </Typography>
@@ -401,9 +391,7 @@ export default function DonationDetail() {
                   width: { xs: "100%", sm: 180 },
                   height: 180,
                   borderRadius: 4,
-                  border: rawPhotoUrl
-                    ? "none"
-                    : "3px dashed #E3D8D8",
+                  border: rawPhotoUrl ? "none" : "3px dashed #E3D8D8",
                   backgroundColor: "#FBF8F8",
                   overflow: "hidden",
                   display: "grid",
@@ -427,8 +415,7 @@ export default function DonationDetail() {
                         console.error(
                           "[DonationDetail] IMG LOAD ERROR:",
                           {
-                            src: (e.currentTarget as HTMLImageElement)
-                              .src,
+                            src: (e.currentTarget as HTMLImageElement).src,
                           }
                         );
                         setImgErr(
@@ -595,4 +582,3 @@ export default function DonationDetail() {
     </Box>
   );
 }
-

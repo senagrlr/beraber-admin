@@ -1,16 +1,32 @@
 // src/pages/Community/ToplulukEnSon.tsx
 import { useEffect, useState } from "react";
 import {
-  Card, CardContent, Typography, Box, IconButton, Tooltip,
-  Table, TableBody, TableCell, TableHead, TableRow, TableContainer,
-  Dialog, DialogTitle, DialogContent, TextField, DialogActions, Button, Avatar
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  IconButton,
+  Tooltip,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableContainer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
+  Button,
+  Avatar,
 } from "@mui/material";
 import { Edit, Delete, AddPhotoAlternate } from "@mui/icons-material";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { communityService } from "@/data/container";
 import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
+import { RECENT_COMMUNITY_POSTS_LIMIT } from "@/constants/limits";
 
-// Domain tipin yoksa bu hafif tip işini görür:
 type PostRow = {
   id: string;
   text?: string;
@@ -29,10 +45,13 @@ export default function ToplulukEnSon() {
   const notifier = useNotifier();
 
   useEffect(() => {
-    const unsub = communityService.listenCommunityPosts(10, (r) => {
-      setRows(r as PostRow[]);
-      setLoading(false);
-    });
+    const unsub = communityService.listenCommunityPosts(
+      RECENT_COMMUNITY_POSTS_LIMIT,
+      (r) => {
+        setRows(r as PostRow[]);
+        setLoading(false);
+      }
+    );
     return () => {
       try {
         unsub?.();
@@ -62,7 +81,10 @@ export default function ToplulukEnSon() {
   };
 
   const onDelete = async (id: string) => {
-    const ok = await notifier.showConfirm("Silinsin mi?", "Bu gönderiyi silmek istiyor musun?");
+    const ok = await notifier.showConfirm(
+      "Silinsin mi?",
+      "Bu gönderiyi silmek istiyor musun?"
+    );
     if (!ok) return;
     try {
       await communityService.deleteCommunityPost(id);
@@ -84,8 +106,14 @@ export default function ToplulukEnSon() {
       const file = e.target.files?.[0] as File | undefined;
       if (!file) return;
 
-      if (!ALLOWED_IMAGE_MIME.includes(file.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
-        notifier.showError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
+      if (
+        !ALLOWED_IMAGE_MIME.includes(
+          file.type as (typeof ALLOWED_IMAGE_MIME)[number]
+        )
+      ) {
+        notifier.showError(
+          "Lütfen JPG, PNG veya WEBP formatında bir görsel seçin."
+        );
         return;
       }
       if (file.size > IMAGE_MAX_BYTES) {
@@ -94,11 +122,17 @@ export default function ToplulukEnSon() {
       }
 
       try {
-        const url = await communityService.updateCommunityPostFile(editId, file);
+        const url = await communityService.updateCommunityPostFile(
+          editId,
+          file
+        );
         setEditUrl(url);
         notifier.showSuccess("Fotoğraf güncellendi.");
       } catch (err) {
-        console.error("[ToplulukEnSon] updateCommunityPostFile error:", err);
+        console.error(
+          "[ToplulukEnSon] updateCommunityPostFile error:",
+          err
+        );
         notifier.showError("Fotoğraf yüklenemedi.");
       }
     };
@@ -108,13 +142,26 @@ export default function ToplulukEnSon() {
   return (
     <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
       <CardContent>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
-          <Typography variant="h6" fontWeight={700}>Topluluk (en son eklenenler)</Typography>
-          {!loading && <Typography variant="body2" color="text.secondary">Toplam {rows.length}</Typography>}
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="space-between"
+          mb={3}
+        >
+          <Typography variant="h6" fontWeight={700}>
+            Topluluk (en son eklenenler)
+          </Typography>
+          {!loading && (
+            <Typography variant="body2" color="text.secondary">
+              Toplam {rows.length}
+            </Typography>
+          )}
         </Box>
 
         {loading && <Typography color="text.secondary">Yükleniyor…</Typography>}
-        {!loading && rows.length === 0 && <Typography color="text.secondary">Henüz gönderi yok.</Typography>}
+        {!loading && rows.length === 0 && (
+          <Typography color="text.secondary">Henüz gönderi yok.</Typography>
+        )}
 
         {!loading && rows.length > 0 && (
           <TableContainer>
@@ -129,7 +176,9 @@ export default function ToplulukEnSon() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id} hover>
-                    <TableCell sx={{ maxWidth: 520 }}>{short(r.text)}</TableCell>
+                    <TableCell sx={{ maxWidth: 520 }}>
+                      {short(r.text)}
+                    </TableCell>
                     <TableCell>
                       {r.photoUrl ? (
                         <Avatar
@@ -137,7 +186,9 @@ export default function ToplulukEnSon() {
                           src={r.photoUrl}
                           sx={{ width: 56, height: 56 }}
                         />
-                      ) : "—"}
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell align="right">
                       <Tooltip title="Düzenle">
@@ -158,8 +209,12 @@ export default function ToplulukEnSon() {
           </TableContainer>
         )}
 
-        {/* Edit Dialog */}
-        <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+        <Dialog
+          open={open}
+          onClose={() => setOpen(false)}
+          fullWidth
+          maxWidth="sm"
+        >
           <DialogTitle>Gönderiyi Düzenle</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2 }}>
             <TextField
@@ -188,17 +243,35 @@ export default function ToplulukEnSon() {
             </Button>
 
             {editUrl && (
-              <Box sx={{ borderRadius: 2, overflow: "hidden", background: "#faf7f7", height: 180 }}>
-                <img src={editUrl} alt="Önizleme" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  background: "#faf7f7",
+                  height: 180,
+                }}
+              >
+                <img
+                  src={editUrl}
+                  alt="Önizleme"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
               </Box>
             )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Vazgeç</Button>
-            <Button variant="contained" onClick={onSave}>Kaydet</Button>
+            <Button variant="contained" onClick={onSave}>
+              Kaydet
+            </Button>
           </DialogActions>
         </Dialog>
       </CardContent>
     </Card>
   );
 }
+

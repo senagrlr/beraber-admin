@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Box, Typography, Button, TextField } from "@mui/material";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { communityService } from "@/data/container";
-import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
+import { useImageValidation } from "@/hooks/useImageValidation";
 
 export default function Topluluk() {
   const [text, setText] = useState("");
@@ -13,6 +13,7 @@ export default function Topluluk() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const notifier = useNotifier();
+  const { validateImage } = useImageValidation();
 
   useEffect(() => {
     if (!file) {
@@ -39,22 +40,15 @@ export default function Topluluk() {
     const f = event.target.files?.[0] ?? null;
     if (!f) return;
 
+    const err = validateImage(f);
+    if (err) {
+      setUploadError(err);
+      setFile(null);
+      setFileName(null);
+      return;
+    }
+
     setUploadError(null);
-
-    if (!ALLOWED_IMAGE_MIME.includes(f.type as (typeof ALLOWED_IMAGE_MIME)[number])) {
-      setUploadError("Lütfen JPG, PNG veya WEBP formatında bir görsel seçin.");
-      setFile(null);
-      setFileName(null);
-      return;
-    }
-
-    if (f.size > IMAGE_MAX_BYTES) {
-      setUploadError("Dosya boyutu en fazla 5MB olabilir.");
-      setFile(null);
-      setFileName(null);
-      return;
-    }
-
     setFile(f);
     setFileName(f.name);
   };

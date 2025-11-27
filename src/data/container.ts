@@ -1,6 +1,7 @@
 // src/data/container.ts
 // src/data/container.ts
-import { auth, db, storage } from "@/services/firebase";
+import { auth, db, storage } from "@/infrastructure/firebase";
+
 
 // ─── Repos ────────────────────────────────────────────────────────────────
 import { FirestoreDonationsRepo } from "@/data/repositories/donations.repo";

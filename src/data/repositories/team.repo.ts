@@ -1,4 +1,4 @@
-// src\data\repositories\team.repo.ts
+// src/data/repositories/team.repo.ts
 import {
   collection,
   deleteDoc,
@@ -34,6 +34,9 @@ export type TeamMember = {
   createdBy?: string | null;  // ekleyen admin uid
 };
 
+/** Firestore dokümanı (id hariç) */
+export type TeamMemberDoc = Omit<TeamMember, "id">;
+
 export interface ITeamRepo {
   upsertByEmailLower(emailLower: string, payload: Omit<TeamMember, "id" | "createdAt" | "updatedAt">): Promise<void>;
   update(id: string, patch: Partial<Omit<TeamMember, "id">>): Promise<void>;
@@ -56,7 +59,7 @@ export class FirestoreTeamRepo implements ITeamRepo {
 
     const exists = (await getDoc(ref)).exists();
 
-    const base = {
+    const base: TeamMemberDoc = {
       email: id,
       name: payload.name ?? null,
       phone: payload.phone ?? null,
@@ -71,7 +74,7 @@ export class FirestoreTeamRepo implements ITeamRepo {
   }
 
   async update(id: string, patch: Partial<Omit<TeamMember, "id">>) {
-    const toUpdate: Record<string, any> = { updatedAt: serverTimestamp() };
+    const toUpdate: Partial<TeamMemberDoc> = { updatedAt: serverTimestamp() };
     if (patch.name !== undefined) toUpdate.name = (patch.name ?? "").trim() || null;
     if (patch.phone !== undefined) toUpdate.phone = (patch.phone ?? "").trim() || null;
     if (patch.roles !== undefined) toUpdate.roles = patch.roles;
@@ -89,11 +92,17 @@ export class FirestoreTeamRepo implements ITeamRepo {
     const qy = query(col, where("active", "==", true), orderBy("createdAt", "desc"), qLimit(n));
     try {
       const snap = await getDocs(qy);
-      return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
+      return snap.docs.map((d) => {
+        const data = d.data() as TeamMemberDoc;
+        return { id: d.id, ...data };
+      });
     } catch (e) {
       console.warn("[TeamRepo.listActive] index yok (fallback):", e);
       const allSnap = await getDocs(col);
-      const all = allSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
+      const all = allSnap.docs.map((d) => {
+        const data = d.data() as TeamMemberDoc;
+        return { id: d.id, ...data };
+      });
       const filtered = all.filter((x) => x.active !== false);
       filtered.sort((a, b) => {
         const ad = a.createdAt?.toMillis?.() ?? 0;
@@ -113,7 +122,10 @@ export class FirestoreTeamRepo implements ITeamRepo {
     off = onSnapshot(
       qIndexed,
       (snap) => {
-        const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
+        const rows = snap.docs.map((d) => {
+          const data = d.data() as TeamMemberDoc;
+          return { id: d.id, ...data };
+        });
         cb(rows);
       },
       (err) => {
@@ -124,7 +136,10 @@ export class FirestoreTeamRepo implements ITeamRepo {
         off = onSnapshot(
           qIndexless,
           (snap2) => {
-            const rows = snap2.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as TeamMember[];
+            const rows = snap2.docs.map((d) => {
+              const data = d.data() as TeamMemberDoc;
+              return { id: d.id, ...data };
+            });
             rows.sort((a, b) => {
               const ad = a.createdAt?.toMillis?.() ?? 0;
               const bd = b.createdAt?.toMillis?.() ?? 0;
@@ -149,17 +164,23 @@ export class FirestoreTeamRepo implements ITeamRepo {
     const id = emailLower.trim().toLowerCase();
     try {
       const s = await getDoc(doc(this.db, COLLECTIONS.TEAM_MEMBERS, id));
-      if (s.exists()) return { id: s.id, ...(s.data() as any) } as TeamMember;
+      if (s.exists()) {
+        const data = s.data() as TeamMemberDoc;
+        return { id: s.id, ...data } as TeamMember;
+      }
     } catch {}
+
     try {
       const s2 = await getDocs(
         query(collection(this.db, COLLECTIONS.TEAM_MEMBERS), where("email", "==", id), qLimit(1))
       );
       if (s2.size > 0) {
         const d = s2.docs[0];
-        return { id: d.id, ...(d.data() as any) } as TeamMember;
+        const data = d.data() as TeamMemberDoc;
+        return { id: d.id, ...data } as TeamMember;
       }
     } catch {}
+
     return null;
   }
 }

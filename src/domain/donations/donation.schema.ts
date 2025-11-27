@@ -11,9 +11,17 @@ export const DONATION_CATEGORIES = [
   "Hayvanlara Destek Yardımı",
   "Çevresel Yardım",
 ] as const;
-export type DonationCategory = typeof DONATION_CATEGORIES[number];
 
-export type DonationStatus = "active" | "completed" | "photo_pending" | "deleted";
+export type DonationCategory = (typeof DONATION_CATEGORIES)[number];
+
+export const DONATION_STATUSES = [
+  "active",
+  "completed",
+  "photo_pending",
+  "deleted",
+] as const;
+
+export type DonationStatus = (typeof DONATION_STATUSES)[number];
 
 export interface Donation {
   id: string;
@@ -36,4 +44,5 @@ export const DonationWriteSchema = z.object({
   category: z.enum(DONATION_CATEGORIES),
   description: z.string().optional(),
 });
+
 export type DonationWrite = z.infer<typeof DonationWriteSchema>;

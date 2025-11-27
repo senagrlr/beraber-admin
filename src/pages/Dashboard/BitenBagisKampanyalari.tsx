@@ -1,12 +1,14 @@
 // src/pages/Dashboard/BitenBagisKampanyalari.tsx
 import { Box, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { donationsService } from "@/data/container"; // ⬅️ container üzerinden
+import { donationsService } from "@/data/container";
+import { formatFirestoreDate } from "@/utils/dateFormatters";
 
+// Daha doğru tip: Donation tipindeki alanlar
 type CompletedDonation = {
   id: string;
   name: string;
-  createdAt?: any; // Firestore Timestamp | Date
+  createdAt?: Date | { seconds: number } | { toDate?: () => Date } | null;
 };
 
 export default function BitenBagisKampanyalari() {
@@ -15,9 +17,10 @@ export default function BitenBagisKampanyalari() {
 
   useEffect(() => {
     let mounted = true;
+
     (async () => {
       try {
-        const data = await donationsService.fetchCompletedCampaigns(10); // ⬅️ servis çağrısı
+        const data = await donationsService.fetchCompletedCampaigns(10);
         if (mounted) setItems(data as CompletedDonation[]);
       } catch (e) {
         console.error("Biten bağışlar alınamadı:", e);
@@ -25,16 +28,11 @@ export default function BitenBagisKampanyalari() {
         if (mounted) setLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
   }, []);
-
-  const formatDate = (ts?: any) => {
-    if (!ts) return "-";
-    const date = typeof ts?.toDate === "function" ? ts.toDate() : new Date(ts);
-    return date.toLocaleDateString("tr-TR");
-  };
 
   return (
     <Box
@@ -66,7 +64,11 @@ export default function BitenBagisKampanyalari() {
             }}
           >
             <Typography>{item.name}</Typography>
-            <Typography color="gray">{formatDate(item.createdAt)}</Typography>
+
+            {/* 🔥 Yeni tarih formatlama util'i */}
+            <Typography color="gray">
+              {formatFirestoreDate(item.createdAt)}
+            </Typography>
           </Box>
         ))
       )}

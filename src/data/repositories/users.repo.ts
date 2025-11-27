@@ -1,4 +1,4 @@
-// src\data\repositories\users.repo.ts
+// src/data/repositories/users.repo.ts
 import {
   collection,
   doc,
@@ -18,6 +18,15 @@ export interface IUsersRepo {
   getUserRole(uid: string): Promise<"admin" | "user" | null>;
 }
 
+interface TeamMemberDocForWhitelist {
+  active?: boolean;
+  email?: string;
+}
+
+interface UserDoc {
+  role?: "admin" | "user" | string;
+}
+
 export class FirestoreUsersRepo implements IUsersRepo {
   constructor(private db: Firestore) {}
 
@@ -29,7 +38,7 @@ export class FirestoreUsersRepo implements IUsersRepo {
     try {
       const s = await getDoc(doc(this.db, COLLECTIONS.TEAM_MEMBERS, id));
       if (s.exists()) {
-        const d = s.data() as any;
+        const d = s.data() as TeamMemberDocForWhitelist;
         return d?.active === true;
       }
     } catch {
@@ -55,7 +64,8 @@ export class FirestoreUsersRepo implements IUsersRepo {
     try {
       const s = await getDoc(doc(this.db, COLLECTIONS.USERS, uid));
       if (!s.exists()) return null;
-      const role = (s.data() as any)?.role;
+      const data = s.data() as UserDoc;
+      const role = data.role;
       return role === "admin" ? "admin" : role === "user" ? "user" : null;
     } catch {
       return null;

@@ -1,4 +1,4 @@
-// src\data\repositories\todos.repo.ts
+// src/data/repositories/todos.repo.ts
 import {
   addDoc,
   collection,
@@ -15,15 +15,7 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/firestore";
 import { PAGE_20 } from "@/constants/pagination";
-
-// UI’nin beklediği basit Todo tipi
-export type Todo = {
-  id: string;
-  text: string;
-  done: boolean;
-  createdAt?: any;
-  updatedAt?: any;
-};
+import type { Todo, TodoDoc } from "@/domain/todos/todo.schema";
 
 export interface ITodosRepo {
   listenActive(cb: (rows: Todo[]) => void): Unsubscribe;
@@ -40,10 +32,13 @@ export class FirestoreTodosRepo implements ITodosRepo {
       collection(this.db, COLLECTIONS.TODOS),
       where("done", "==", false),
       orderBy("createdAt", "desc"),
-      qLimit(PAGE_20) // anlık dinlemeyi sınırlayalım
+      qLimit(PAGE_20)
     );
     return onSnapshot(qy, (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Todo[];
+      const rows: Todo[] = snap.docs.map((d) => {
+        const data = d.data() as TodoDoc;
+        return { id: d.id, ...data };
+      });
       cb(rows);
     });
   }
@@ -55,18 +50,22 @@ export class FirestoreTodosRepo implements ITodosRepo {
       qLimit(PAGE_20)
     );
     return onSnapshot(qy, (snap) => {
-      const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Todo[];
+      const rows: Todo[] = snap.docs.map((d) => {
+        const data = d.data() as TodoDoc;
+        return { id: d.id, ...data };
+      });
       cb(rows);
     });
   }
 
   async add(text: string): Promise<void> {
-    await addDoc(collection(this.db, COLLECTIONS.TODOS), {
+    const payload: TodoDoc = {
       text: (text ?? "").trim(),
       done: false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    await addDoc(collection(this.db, COLLECTIONS.TODOS), payload);
   }
 
   async toggle(todo: Todo): Promise<void> {

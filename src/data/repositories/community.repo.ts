@@ -1,4 +1,4 @@
-// src\data\repositories\community.repo.ts
+// src/data/repositories/community.repo.ts
 import {
   addDoc,
   collection,
@@ -20,6 +20,26 @@ import { COLLECTIONS } from "@/constants/firestore";
 import type { CommunityPost, Highlight } from "@/domain/community/post.types";
 import { toCommunityPost, toHighlight } from "@/domain/community/post.mapper";
 import { PAGE_20, RECENT_10 } from "@/constants/pagination";
+
+// Firestore highlight dokümanı
+export interface HighlightDoc {
+  monthKey?: string;
+  photoUrl?: string;
+  status?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+// Firestore community post dokümanı
+export interface CommunityPostDoc {
+  text?: string;
+  photoUrl?: string;
+  status?: string;
+  createdBy?: string | null;
+  createdByEmailLower?: string | null;
+  createdAt?: any;
+  updatedAt?: any;
+}
 
 export interface ICommunityRepo {
   // highlights
@@ -48,35 +68,46 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
   async setMonthlyHighlightUrl(monthKey: string, url: string) {
     const ref = doc(this.db, COLLECTIONS.HIGHLIGHTS, monthKey);
     const snap = await getDoc(ref);
-    const base = {
+
+    const base: HighlightDoc = {
       monthKey,
       photoUrl: url.trim(),
       status: "active",
       updatedAt: serverTimestamp(),
     };
+
     if (!snap.exists()) {
-      await setDoc(ref, { ...base, createdAt: serverTimestamp() }, { merge: true });
+      await setDoc(
+        ref,
+        { ...base, createdAt: serverTimestamp() } as HighlightDoc,
+        { merge: true }
+      );
     } else {
-      const hasCreatedAt = !!(snap.data() as any)?.createdAt;
-      const payload = hasCreatedAt ? base : { ...base, createdAt: serverTimestamp() };
+      const hasCreatedAt = !!(snap.data() as HighlightDoc)?.createdAt;
+      const payload: HighlightDoc = hasCreatedAt
+        ? base
+        : { ...base, createdAt: serverTimestamp() };
       await setDoc(ref, payload, { merge: true });
     }
   }
 
   async addHighlightUrl(input: { monthKey: string; photoUrl: string }) {
-    const refDoc = await addDoc(collection(this.db, COLLECTIONS.HIGHLIGHTS), {
+    const payload: HighlightDoc = {
       monthKey: input.monthKey,
       photoUrl: input.photoUrl.trim(),
       status: "active",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    const refDoc = await addDoc(collection(this.db, COLLECTIONS.HIGHLIGHTS), payload);
     return refDoc.id;
   }
 
   async updateMonthlyHighlight(idOrMonthKey: string, patch: { photoUrl?: string }) {
-    const toUpdate: Record<string, any> = { updatedAt: serverTimestamp() };
-    if (typeof patch.photoUrl === "string") toUpdate.photoUrl = patch.photoUrl.trim();
+    const toUpdate: Partial<HighlightDoc> = { updatedAt: serverTimestamp() };
+    if (typeof patch.photoUrl === "string") {
+      toUpdate.photoUrl = patch.photoUrl.trim();
+    }
 
     const tryId = doc(this.db, COLLECTIONS.HIGHLIGHTS, idOrMonthKey);
     const snap = await getDoc(tryId);
@@ -94,11 +125,13 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
     return onSnapshot(
       colRef,
       (snap) => {
-        const all = snap.docs.map((d) => toHighlight(d.id, d.data()));
+        const all = snap.docs.map((d) =>
+          toHighlight(d.id, d.data() as HighlightDoc)
+        );
         // updatedAt → createdAt → monthKey(YYYY-MM)
         all.sort((a, b) => {
-          const ta = (a.updatedAt?.toMillis?.() ?? a.createdAt?.toMillis?.() ?? 0);
-          const tb = (b.updatedAt?.toMillis?.() ?? b.createdAt?.toMillis?.() ?? 0);
+          const ta = a.updatedAt?.toMillis?.() ?? a.createdAt?.toMillis?.() ?? 0;
+          const tb = b.updatedAt?.toMillis?.() ?? b.createdAt?.toMillis?.() ?? 0;
           if (tb !== ta) return tb - ta;
           return String(b.monthKey ?? "").localeCompare(String(a.monthKey ?? ""));
         });
@@ -129,7 +162,7 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
     createdBy?: string | null;
     createdByEmailLower?: string | null;
   }) {
-    const refDoc = await addDoc(collection(this.db, COLLECTIONS.COMMUNITY_POSTS), {
+    const payload: CommunityPostDoc = {
       text: (input.text ?? "").trim(),
       photoUrl: input.photoUrl.trim(),
       status: "active",
@@ -137,12 +170,17 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
       createdByEmailLower: input.createdByEmailLower ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    const refDoc = await addDoc(
+      collection(this.db, COLLECTIONS.COMMUNITY_POSTS),
+      payload
+    );
     return refDoc.id;
   }
 
   async updatePost(id: string, patch: { text?: string; photoUrl?: string }) {
-    const toUpdate: Record<string, any> = { updatedAt: serverTimestamp() };
+    const toUpdate: Partial<CommunityPostDoc> = { updatedAt: serverTimestamp() };
     if (typeof patch.text === "string") toUpdate.text = patch.text.trim();
     if (typeof patch.photoUrl === "string") toUpdate.photoUrl = patch.photoUrl.trim();
     await updateDoc(doc(this.db, COLLECTIONS.COMMUNITY_POSTS, id), toUpdate);
@@ -157,7 +195,12 @@ export class FirestoreCommunityRepo implements ICommunityRepo {
     );
     return onSnapshot(
       qy,
-      (snap) => cb(snap.docs.map((d) => toCommunityPost(d.id, d.data()))),
+      (snap) => {
+        const rows = snap.docs.map((d) =>
+          toCommunityPost(d.id, d.data() as CommunityPostDoc)
+        );
+        cb(rows);
+      },
       (err) => {
         console.error("[CommunityRepo.listenPosts] error:", err);
         // Hata durumunda da callback'i boş listeyle çağır
@@ -177,12 +220,13 @@ export async function backfillHighlightsCreatedAt(db: Firestore) {
   let fixed = 0;
   await Promise.all(
     snap.docs.map(async (d) => {
-      const data = d.data() as any;
+      const data = d.data() as HighlightDoc;
       if (!("createdAt" in data)) {
-        await updateDoc(doc(db, COLLECTIONS.HIGHLIGHTS, d.id), {
+        const patch: HighlightDoc = {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
+        };
+        await updateDoc(doc(db, COLLECTIONS.HIGHLIGHTS, d.id), patch);
         fixed++;
       }
     })

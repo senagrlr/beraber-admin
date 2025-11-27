@@ -22,7 +22,8 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { todosService } from "@/data/container"; // container üzerinden servis
-import type { Todo } from "../../types/Todo";
+import type { Todo } from "@/domain/todos/todo.schema";
+import { MAX_ACTIVE_TODOS } from "@/constants/limits";
 
 const CARD_BG = "#E9E4E4";
 const TITLE_COLOR = "#5B3B3B";
@@ -34,7 +35,10 @@ export default function YapilacaklarListesi() {
   const [newText, setNewText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const activeCount = useMemo(() => todos.filter((t) => !t.done).length, [todos]);
+  const activeCount = useMemo(
+    () => todos.filter((t) => !t.done).length,
+    [todos]
+  );
 
   useEffect(() => {
     setError(null);
@@ -50,8 +54,10 @@ export default function YapilacaklarListesi() {
       setError("Görev metni boş olamaz.");
       return;
     }
-    if (activeCount >= 10) {
-      setError("En fazla 10 aktif görev ekleyebilirsin. Lütfen önce bazılarını tamamla.");
+    if (activeCount >= MAX_ACTIVE_TODOS) {
+      setError(
+        `En fazla ${MAX_ACTIVE_TODOS} aktif görev ekleyebilirsin. Lütfen önce bazılarını tamamla.`
+      );
       return;
     }
     await todosService.add(newText.trim());
@@ -81,9 +87,19 @@ export default function YapilacaklarListesi() {
         }
         action={
           <Stack direction="row" spacing={1} alignItems="center">
-            <Tooltip title={showCompleted ? "Tamamlananları gizle" : "Tamamlananları göster"}>
+            <Tooltip
+              title={
+                showCompleted
+                  ? "Tamamlananları gizle"
+                  : "Tamamlananları göster"
+              }
+            >
               <IconButton onClick={() => setShowCompleted((s) => !s)}>
-                {showCompleted ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                {showCompleted ? (
+                  <VisibilityOffOutlinedIcon />
+                ) : (
+                  <VisibilityOutlinedIcon />
+                )}
               </IconButton>
             </Tooltip>
             <Tooltip title="Yeni görev ekle">
@@ -98,7 +114,10 @@ export default function YapilacaklarListesi() {
 
       <CardContent sx={{ pt: 1.5, flex: 1, overflowY: "auto" }}>
         {activeTodos.length === 0 ? (
-          <Typography variant="body2" sx={{ color: TITLE_COLOR, opacity: 0.8 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: TITLE_COLOR, opacity: 0.8 }}
+          >
             Aktif görev yok.
           </Typography>
         ) : (
@@ -144,8 +163,12 @@ export default function YapilacaklarListesi() {
               {error}
             </Typography>
           )}
-          <Typography variant="caption" sx={{ mt: 1, display: "block", opacity: 0.7 }}>
-            En fazla 10 aktif görev tutulur. Tamamlanan görevler altta listelenir.
+          <Typography
+            variant="caption"
+            sx={{ mt: 1, display: "block", opacity: 0.7 }}
+          >
+            En fazla {MAX_ACTIVE_TODOS} aktif görev tutulur. Tamamlanan görevler
+            altta listelenir.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -164,7 +187,6 @@ function TodoRow({ todo }: { todo: Todo }) {
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      {/* onChange: servis çağrısı */}
       <Checkbox
         checked={todo.done}
         onChange={() => todosService.toggle(todo)}

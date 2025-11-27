@@ -10,7 +10,8 @@ import {
 import { FirestoreCommunityRepo } from "@/data/repositories/community.repo";
 import type { CommunityPost, Highlight } from "@/domain/community/post.types";
 import { COLLECTIONS } from "@/constants/firestore";
-import { auth } from "@/services/firebase";
+import { auth } from "@/infrastructure/firebase";
+
 
 // (Opsiyonel) dosyadan yükleme desteği için Storage
 import type { FirebaseStorage } from "firebase/storage";
@@ -23,16 +24,6 @@ export class CommunityService {
     private storage?: FirebaseStorage
   ) {}
 
-  // ── Küçük helper: güvenli dosya adı ────────────────────────────────────────
-  private createSafeFileName(originalName: string) {
-    const base = originalName
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9.\-_]/g, "_");
-    const ts = Date.now();
-    return `${ts}_${Math.random().toString(36).slice(2, 8)}_${base}`;
-  }
-
   // ── Highlights ──────────────────────────────────────────────────────────────
   setMonthlyHighlightUrl(monthKey: string, url: string) {
     console.warn("[CommunityService.setMonthlyHighlightUrl] LEGACY çağrı — yeni eklemelerde kullanma!");
@@ -43,18 +34,26 @@ export class CommunityService {
     return this.repo.addHighlightUrl(input);
   }
 
-  /** 💾 Dosyadan highlight ekleme (Beraber’de Bu Ay) */
+  /**
+   * YENİ: Beraber’de Bu Ay için DOSYADAN highlight ekleme
+   * 1) Dosyayı Storage'a yükler: beraberde_bu_ay/{something}.jpg
+   * 2) URL'i Firestore HIGHLIGHTS koleksiyonuna yazar
+   */
   async addHighlightFile(input: { monthKey: string; file: File }) {
     if (!this.storage) {
-      throw new Error("[CommunityService.addHighlightFile] Storage tanımlı değil.");
-    }
-    if (!(input.file instanceof File) || input.file.size <= 0) {
-      throw new Error("Geçersiz dosya.");
+      throw new Error(
+        "[CommunityService.addHighlightFile] Storage tanımlı değil. DI ile FirebaseStorage örneği geçir veya URL yolunu (addHighlightUrl) kullan."
+      );
     }
 
     const ext = (input.file.name.split(".").pop() || "jpg").toLowerCase();
-    const safeName = this.createSafeFileName(input.file.name || `highlight.${ext}`);
-    const path = `${COLLECTIONS.HIGHLIGHTS}/${input.monthKey}/${safeName}`;
+    const safeName = `${input.monthKey}_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}.${ext}`;
+
+    // PATH: beraberde_bu_ay/...  → storage.rules'taki
+    // match /beraberde_bu_ay/{fileName} ile birebir uyumlu
+    const path = `${COLLECTIONS.HIGHLIGHTS}/${safeName}`;
 
     const r = ref(this.storage, path);
     await uploadBytes(r, input.file);
@@ -64,27 +63,6 @@ export class CommunityService {
       monthKey: input.monthKey,
       photoUrl: url,
     });
-  }
-
-  /** 💾 Var olan highlight için fotoğrafı dosyadan güncelle */
-  async uploadHighlightPhoto(idOrMonthKey: string, file: File): Promise<string> {
-    if (!this.storage) {
-      throw new Error("[CommunityService.uploadHighlightPhoto] Storage tanımlı değil.");
-    }
-    if (!(file instanceof File) || file.size <= 0) {
-      throw new Error("Geçersiz dosya.");
-    }
-
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const safeName = this.createSafeFileName(file.name || `highlight.${ext}`);
-    const path = `${COLLECTIONS.HIGHLIGHTS}/${idOrMonthKey}/${safeName}`;
-
-    const r = ref(this.storage, path);
-    await uploadBytes(r, file);
-    const url = await getDownloadURL(r);
-
-    await this.repo.updateMonthlyHighlight(idOrMonthKey, { photoUrl: url });
-    return url;
   }
 
   updateMonthlyHighlight(idOrMonthKey: string, patch: { photoUrl?: string }) {
@@ -145,47 +123,24 @@ export class CommunityService {
     return this.addCommunityPostUrl(input);
   }
 
-  /** 💾 Dosyadan topluluk gönderisi ekleme */
+  /** Dosyadan topluluk gönderisi ekleme (çalışan kısım) */
   async addCommunityPostFile(input: { text?: string; file: File }) {
     if (!this.storage) {
       throw new Error(
-        "[CommunityService.addCommunityPostFile] Storage tanımlı değil. DI ile FirebaseStorage örneği geçir."
+        "[CommunityService.addCommunityPostFile] Storage tanımlı değil. DI ile FirebaseStorage örneği geçir veya URL yolunu (addCommunityPostUrl) kullan."
       );
-    }
-    if (!(input.file instanceof File) || input.file.size <= 0) {
-      throw new Error("Geçersiz dosya.");
     }
 
     const ext = (input.file.name.split(".").pop() || "jpg").toLowerCase();
-    const safeName = this.createSafeFileName(input.file.name || `post.${ext}`);
-    const path = `${COLLECTIONS.COMMUNITY_POSTS}/${safeName}`;
+    const path = `${COLLECTIONS.COMMUNITY_POSTS}/${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}.${ext}`;
 
     const r = ref(this.storage, path);
     await uploadBytes(r, input.file);
     const url = await getDownloadURL(r);
 
     return this.addCommunityPostUrl({ text: input.text, photoUrl: url });
-  }
-
-  /** 💾 Var olan topluluk postu için fotoğrafı dosyadan güncelle */
-  async updateCommunityPostFile(id: string, file: File): Promise<string> {
-    if (!this.storage) {
-      throw new Error("[CommunityService.updateCommunityPostFile] Storage tanımlı değil.");
-    }
-    if (!(file instanceof File) || file.size <= 0) {
-      throw new Error("Geçersiz dosya.");
-    }
-
-    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
-    const safeName = this.createSafeFileName(file.name || `post.${ext}`);
-    const path = `${COLLECTIONS.COMMUNITY_POSTS}/${id}/${safeName}`;
-
-    const r = ref(this.storage, path);
-    await uploadBytes(r, file);
-    const url = await getDownloadURL(r);
-
-    await this.repo.updatePost(id, { photoUrl: url });
-    return url;
   }
 
   updateCommunityPost(id: string, patch: { text?: string; photoUrl?: string }) {

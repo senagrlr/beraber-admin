@@ -1,4 +1,4 @@
-// src\data\repositories\donations.repo.ts
+// src/data/repositories/donations.repo.ts
 import {
   addDoc,
   collection,
@@ -12,7 +12,7 @@ import {
   query,
   where,
   orderBy,
-  limit as qLimit, // ⬅️ alias
+  limit as qLimit,
   startAt,
   endAt,
   type Unsubscribe,
@@ -30,6 +30,20 @@ import { COLLECTIONS } from "@/constants/firestore";
 import { toDonation, fromDonationWrite } from "@/domain/donations/donation.mapper";
 import type { Donation, DonationWrite } from "@/domain/donations/donation.schema";
 
+/** Firestore'daki donation dokümanı (id hariç) */
+export interface DonationDoc {
+  name?: string;
+  nameLower?: string;
+  amount?: number;
+  collected?: number;
+  category?: string;
+  description?: string;
+  status?: "active" | "completed" | "photo_pending" | "deleted" | string;
+  photoUrl?: string;
+  createdBy?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
 
 export interface IDonationsRepo {
   add(input: DonationWrite, uid: string): Promise<string>;
@@ -48,7 +62,7 @@ export interface IDonationsRepo {
   fetchYearToDateTotal(year: number): Promise<number>;
   fetchCompleted(limitN: number): Promise<Array<{ id: string; name?: string }>>;
   fetchCategoryRatios(): Promise<Array<{ name: string; value: number; color: string }>>;
-  searchByName(q: string, limitN: number): Promise<Array<{ id:string; name: string }>>;
+  searchByName(q: string, limitN: number): Promise<Array<{ id: string; name: string }>>;
   fetchCompletedCampaigns(limitN: number): Promise<Array<{ id: string; name?: string }>>;
   fetchPhotoPending(limitN: number): Promise<Array<{ id: string; name?: string }>>;
   fetchDashboardCounts(): Promise<{
@@ -72,22 +86,34 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       createdBy: uid,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    } as DonationDoc);
     return refDoc.id;
   }
 
   async getById(id: string): Promise<Donation | null> {
     const s = await getDoc(doc(this.db, COLLECTIONS.DONATIONS, id));
-    if (!s.exists() || s.data()?.status === "deleted") return null;
-    return toDonation(s.id, s.data() as any);
+    if (!s.exists()) return null;
+
+    const data = s.data() as DonationDoc;
+    if (data.status === "deleted") return null;
+
+    return toDonation(s.id, data);
   }
 
   listenById(id: string, cb: (row: Donation | null) => void): Unsubscribe {
     return onSnapshot(
       doc(this.db, COLLECTIONS.DONATIONS, id),
       (s) => {
-        if (!s.exists() || s.data()?.status === "deleted") cb(null);
-        else cb(toDonation(s.id, s.data() as any));
+        if (!s.exists()) {
+          cb(null);
+          return;
+        }
+        const data = s.data() as DonationDoc;
+        if (data.status === "deleted") {
+          cb(null);
+        } else {
+          cb(toDonation(s.id, data));
+        }
       },
       (err) => {
         console.error("[DonationsRepo.listenById] error:", err);
@@ -98,6 +124,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
 
   async update(id: string, patch: Partial<DonationWrite>): Promise<void> {
     const firestorePatch: Record<string, any> = {};
+
     if (patch.name !== undefined) {
       const trimmedName = patch.name.trim();
       if (trimmedName.length >= 3) {
@@ -107,13 +134,23 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
         console.warn(`[DonationsRepo.update] invalid name for ${id}, skipped.`);
       }
     }
+
     if (patch.amount !== undefined) {
       const amt = Number(patch.amount);
-      if (Number.isFinite(amt) && amt > 0) firestorePatch.amount = amt;
-      else console.warn(`[DonationsRepo.update] invalid amount for ${id}, skipped.`);
+      if (Number.isFinite(amt) && amt > 0) {
+        firestorePatch.amount = amt;
+      } else {
+        console.warn(`[DonationsRepo.update] invalid amount for ${id}, skipped.`);
+      }
     }
-    if (patch.category !== undefined) firestorePatch.category = patch.category;
-    if (patch.description !== undefined) firestorePatch.description = (patch.description ?? "").trim();
+
+    if (patch.category !== undefined) {
+      firestorePatch.category = patch.category;
+    }
+
+    if (patch.description !== undefined) {
+      firestorePatch.description = (patch.description ?? "").trim();
+    }
 
     // photoUrl bu metodla güncellenmez
     delete (firestorePatch as any).photoUrl;
@@ -121,18 +158,24 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     await updateDoc(doc(this.db, COLLECTIONS.DONATIONS, id), {
       ...firestorePatch,
       updatedAt: serverTimestamp(),
-    });
+    } as Partial<DonationDoc>);
   }
 
   async setPhotoUrl(id: string, url: string): Promise<void> {
     await updateDoc(doc(this.db, COLLECTIONS.DONATIONS, id), {
       photoUrl: url.trim(),
       updatedAt: serverTimestamp(),
-    });
+    } as Partial<DonationDoc>);
   }
 
   async uploadPhoto(id: string, file: File): Promise<string> {
-    const safeFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+    // Dosya adını güvenli hâle getir (sadece harf, rakam ve nokta kalsın)
+    const originalName = file.name || "file";
+    const sanitizedName = originalName.replace(/[^a-zA-Z0-9.]/g, "_");
+
+    // Benzersiz ve güvenli dosya adı
+    const safeFileName = Date.now().toString() + "_" + sanitizedName;
+
     const storageRef = ref(this.storage, `donations/${id}/${safeFileName}`);
     await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(storageRef);
@@ -144,22 +187,28 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     await updateDoc(doc(this.db, COLLECTIONS.DONATIONS, id), {
       status: "deleted",
       updatedAt: serverTimestamp(),
-    });
+    } as Partial<DonationDoc>);
   }
 
   /* ---------------- Realtime listeler ---------------- */
 
-  // ✅ status IN + createdAt DESC
+  // status IN + createdAt DESC
   listenRecent(limitN: number, cb: (rows: Donation[]) => void): Unsubscribe {
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "in", ["active", "completed", "photo_pending"]),
       orderBy("createdAt", "desc"),
-      qLimit(limitN) // ⬅️ alias kullan
+      qLimit(limitN)
     );
     return onSnapshot(
       qy,
-      (snap) => cb(snap.docs.map((d) => toDonation(d.id, d.data() as any))),
+      (snap) =>
+        cb(
+          snap.docs.map((d) => {
+            const data = d.data() as DonationDoc;
+            return toDonation(d.id, data);
+          })
+        ),
       (err) => {
         console.error("[DonationsRepo.listenRecent] error:", err);
         cb([]);
@@ -175,16 +224,19 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc"),
-      qLimit(limitN) // ⬅️
+      qLimit(limitN)
     );
     return onSnapshot(
       qy,
       (snap) =>
         cb(
-          snap.docs.map((d) => ({
-            id: d.id,
-            name: String(d.data()?.name ?? ""),
-          }))
+          snap.docs.map((d) => {
+            const data = d.data() as DonationDoc;
+            return {
+              id: d.id,
+              name: String(data.name ?? ""),
+            };
+          })
         ),
       (err) => {
         console.error("[DonationsRepo.listenRecentCompleted] error:", err);
@@ -197,7 +249,9 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
 
   async fetchMonthToDateTotal(): Promise<number> {
     const now = new Date();
-    const firstOfMonth = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const firstOfMonth = Timestamp.fromDate(
+      new Date(now.getFullYear(), now.getMonth(), 1)
+    );
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
@@ -206,7 +260,10 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     try {
       const snap = await getDocs(qy);
       let sum = 0;
-      snap.docs.forEach((d) => (sum += Number(d.data()?.collected ?? 0)));
+      snap.docs.forEach((d) => {
+        const data = d.data() as DonationDoc;
+        sum += Number(data.collected ?? 0);
+      });
       return sum;
     } catch (e) {
       console.error("[fetchMonthToDateTotal] index?", e);
@@ -226,7 +283,10 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     try {
       const snap = await getDocs(qy);
       let sum = 0;
-      snap.docs.forEach((d) => (sum += Number(d.data()?.collected ?? 0)));
+      snap.docs.forEach((d) => {
+        const data = d.data() as DonationDoc;
+        sum += Number(data.collected ?? 0);
+      });
       return sum;
     } catch (e) {
       console.error("[fetchYearToDateTotal] index?", e);
@@ -239,22 +299,30 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc"),
-      qLimit(limitN) // ⬅️
+      qLimit(limitN)
     );
     try {
       const snap = await getDocs(qy);
-      return snap.docs.map((d) => ({ id: d.id, name: String(d.data()?.name ?? "") }));
+      return snap.docs.map((d) => {
+        const data = d.data() as DonationDoc;
+        return { id: d.id, name: String(data.name ?? "") };
+      });
     } catch (e) {
       console.error("[fetchCompleted] index?", e);
       return [];
     }
   }
+
   fetchCompletedCampaigns(limitN: number) {
     return this.fetchCompleted(limitN);
   }
 
-  async fetchCategoryRatios(): Promise<Array<{ name: string; value: number; color: string }>> {
-    const thirtyDaysAgo = Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+  async fetchCategoryRatios(): Promise<
+    Array<{ name: string; value: number; color: string }>
+  > {
+    const thirtyDaysAgo = Timestamp.fromDate(
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    );
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "==", "completed"),
@@ -264,12 +332,16 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       const snap = await getDocs(qy);
       const counts: Record<string, number> = {};
       let total = 0;
+
       snap.docs.forEach((d) => {
-        const cat = String(d.data()?.category ?? "Diğer");
+        const data = d.data() as DonationDoc;
+        const cat = String(data.category ?? "Diğer");
         counts[cat] = (counts[cat] ?? 0) + 1;
         total += 1;
       });
+
       if (total === 0) return [];
+
       const palette: string[] = [
         "#B60707",
         "#E67E22",
@@ -282,6 +354,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
         "#C0392B",
         "#7F8C8D",
       ];
+
       return Object.entries(counts).map(([name, c], i) => ({
         name,
         value: Math.round((c / total) * 100),
@@ -293,20 +366,28 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     }
   }
 
-  async searchByName(qstr: string, limitN: number): Promise<Array<{ id: string; name: string }>> {
+  async searchByName(
+    qstr: string,
+    limitN: number
+  ): Promise<Array<{ id: string; name: string }>> {
     const q = (qstr || "").trim().toLowerCase();
     if (!q) return [];
+
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "in", ["active", "completed", "photo_pending"]),
       orderBy("nameLower", "asc"),
       startAt(q),
       endAt(q + "\uf8ff"),
-      qLimit(limitN) // ⬅️
+      qLimit(limitN)
     );
+
     try {
       const snap = await getDocs(qy);
-      return snap.docs.map((d) => ({ id: d.id, name: String(d.data()?.name ?? "") }));
+      return snap.docs.map((d) => {
+        const data = d.data() as DonationDoc;
+        return { id: d.id, name: String(data.name ?? "") };
+      });
     } catch (e) {
       console.warn("[searchByName] index yok; fallback client filter:", e);
       const allSnap = await getDocs(
@@ -316,23 +397,32 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
         )
       );
       return allSnap.docs
-        .map((d) => ({ id: d.id, name: String(d.data()?.name ?? "") }))
+        .map((d) => {
+          const data = d.data() as DonationDoc;
+          return { id: d.id, name: String(data.name ?? "") };
+        })
         .filter((it) => it.name.toLowerCase().startsWith(q))
         .slice(0, limitN);
     }
   }
 
-  async fetchPhotoPending(limitN: number): Promise<Array<{ id: string; name?: string }>> {
+  async fetchPhotoPending(
+    limitN: number
+  ): Promise<Array<{ id: string; name?: string }>> {
     const qy = query(
       collection(this.db, COLLECTIONS.DONATIONS),
       where("status", "in", ["completed", "photo_pending"]),
-      where("photoUrl", "==", ""), // Boş string mantığını koruyoruz
+      where("photoUrl", "==", ""),
       orderBy("updatedAt", "desc"),
-      qLimit(limitN) // ⬅️
+      qLimit(limitN)
     );
+
     try {
       const snap = await getDocs(qy);
-      return snap.docs.map((d) => ({ id: d.id, name: String(d.data()?.name ?? "") }));
+      return snap.docs.map((d) => {
+        const data = d.data() as DonationDoc;
+        return { id: d.id, name: String(data.name ?? "") };
+      });
     } catch (e) {
       console.warn("[fetchPhotoPending] index yok; fallback:", e);
       const allSnap = await getDocs(
@@ -341,14 +431,18 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
           where("status", "in", ["completed", "photo_pending"])
         )
       );
+
       return allSnap.docs
-        .map((d) => ({ id: d.id, data: d.data() as any }))
+        .map((d) => {
+          const data = d.data() as DonationDoc;
+          return { id: d.id, data };
+        })
         .filter((it) => (it.data.photoUrl ?? "") === "")
-        .sort(
-          (a, b) =>
-            (b.data.updatedAt?.toMillis?.() ?? 0) -
-            (a.data.updatedAt?.toMillis?.() ?? 0)
-        )
+        .sort((a, b) => {
+          const ta = a.data.updatedAt?.toMillis?.() ?? 0;
+          const tb = b.data.updatedAt?.toMillis?.() ?? 0;
+          return tb - ta;
+        })
         .slice(0, limitN)
         .map((it) => ({ id: it.id, name: String(it.data.name ?? "") }));
     }
@@ -361,9 +455,12 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
     photoPending: number;
   }> {
     const col = collection(this.db, COLLECTIONS.DONATIONS);
+
     try {
       const [totalAgg, activeAgg, completedAgg, photoPendingAgg] = await Promise.all([
-        getCountFromServer(query(col, where("status", "in", ["active", "completed", "photo_pending"]))),
+        getCountFromServer(
+          query(col, where("status", "in", ["active", "completed", "photo_pending"]))
+        ),
         getCountFromServer(query(col, where("status", "==", "active"))),
         getCountFromServer(query(col, where("status", "==", "completed"))),
         getCountFromServer(
@@ -374,6 +471,7 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
           )
         ),
       ]);
+
       return {
         total: totalAgg.data().count,
         active: activeAgg.data().count,

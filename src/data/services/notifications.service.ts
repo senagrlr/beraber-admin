@@ -1,6 +1,10 @@
 // src/data/services/notifications.service.ts
 import type { Unsubscribe } from "firebase/firestore";
 import type { INotificationsRepo } from "@/data/repositories/notifications.repo";
+import {
+  RECENT_NOTIFICATIONS_LIMIT,
+  NOTIFICATIONS_PAGE_SIZE,
+} from "@/constants/limits";
 
 export type NotificationTargetAll = { type: "all" };
 export type NotificationTargetCampaign = {
@@ -33,7 +37,15 @@ export class NotificationsService {
     return this.repo.create(input);
   }
 
-  update(id: string, patch: Partial<{ title: string; body: string; target: NotificationTarget; scheduledAt: any }>) {
+  update(
+    id: string,
+    patch: Partial<{
+      title: string;
+      body: string;
+      target: NotificationTarget;
+      scheduledAt: any;
+    }>
+  ) {
     return this.repo.update(id, patch);
   }
 
@@ -59,30 +71,48 @@ export class NotificationsService {
   }
 
   // ====== GERİYE DÖNÜK UYUMLULUK (UI eski adları kullanıyorsa) ======
-  // SonBildirimler.tsx `notificationsService.listenRecent(...)` çağırıyor
   listenRecent(limitN: number, cb: (rows: NotificationDoc[]) => void): Unsubscribe {
     return this.listenRealtime(limitN, cb);
   }
 
-  // Eğer bir yerde `createNotification / updateNotification / deleteNotificationById`
-  // gibi isimler kullanıldıysa aşağıdaki alias'lar da çalışır:
-  createNotification(input: { title: string; body: string; target: NotificationTarget; scheduledAt?: any }) {
+  createNotification(input: {
+    title: string;
+    body: string;
+    target: NotificationTarget;
+    scheduledAt?: any;
+  }) {
     return this.create(input);
   }
-  updateNotification(id: string, patch: Partial<{ title: string; body: string; target: NotificationTarget; scheduledAt: any }>) {
+
+  updateNotification(
+    id: string,
+    patch: Partial<{
+      title: string;
+      body: string;
+      target: NotificationTarget;
+      scheduledAt: any;
+    }>
+  ) {
     return this.update(id, patch);
   }
+
   deleteNotificationById(id: string) {
     return this.delete(id);
   }
-  listenNotificationsRealtime(cb: (rows: NotificationDoc[]) => void, limitN = 20): Unsubscribe {
+
+  // ⬇️ Buradaki default 20 yerine constant kullanıyoruz
+  listenNotificationsRealtime(
+    cb: (rows: NotificationDoc[]) => void,
+    limitN = RECENT_NOTIFICATIONS_LIMIT
+  ): Unsubscribe {
     return this.listenRealtime(limitN, cb);
   }
-  fetchNotificationsPage(limitN: number, cursor?: any) {
+
+  fetchNotificationsPage(limitN: number = NOTIFICATIONS_PAGE_SIZE, cursor?: any) {
     return this.fetchPage(limitN, cursor);
   }
+
   getNotificationById(id: string) {
     return this.getById(id);
   }
 }
-

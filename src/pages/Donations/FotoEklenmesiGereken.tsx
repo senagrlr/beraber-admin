@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, Typography, Box, IconButton } from "@mui/material";
 import { Edit } from "@mui/icons-material";
 import { donationsService } from "@/data/container";
+import { formatFirestoreDate } from "@/utils/dateFormatters";
 
 type Row = {
   id: string;
@@ -31,17 +32,6 @@ export default function FotoEklenmesiGereken() {
   }, []);
 
   const goDetail = (id: string) => navigate(`/donations/${id}`);
-
-  const formatDate = (val: Row["createdAt"]) => {
-    if (!val) return "";
-    // Firestore Timestamp, Date veya {seconds} için korumalı okuma
-    if (val instanceof Date) return val.toLocaleDateString("tr-TR");
-    // @ts-ignore
-    if (typeof val?.toDate === "function") return val.toDate().toLocaleDateString("tr-TR");
-    // @ts-ignore
-    if (typeof val?.seconds === "number") return new Date(val.seconds * 1000).toLocaleDateString("tr-TR");
-    return "";
-  };
 
   return (
     <Card
@@ -83,7 +73,9 @@ export default function FotoEklenmesiGereken() {
               onClick={(e) => e.stopPropagation()}
               sx={{ display: "flex", alignItems: "center", gap: 2 }}
             >
-              <Typography color="gray">{formatDate(d.createdAt)}</Typography>
+              <Typography color="gray">
+               {formatFirestoreDate(d.createdAt)}
+              </Typography>
               <IconButton size="small" onClick={() => goDetail(d.id)} title="Detaya git">
                 <Edit fontSize="small" />
               </IconButton>

@@ -1,4 +1,4 @@
-// src\data\repositories\notifications.repo.ts
+// src/data/repositories/notifications.repo.ts
 import {
   addDoc,
   collection,
@@ -19,6 +19,16 @@ import {
 import { COLLECTIONS } from "@/constants/firestore";
 import { RECENT_10, PAGE_20 } from "@/constants/pagination";
 
+// Firestore tarafındaki bildirim dokümanı (id hariç)
+export interface NotificationRecord {
+  title: string;
+  body: string;
+  target: any;
+  scheduledAt?: any;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export interface INotificationsRepo {
   create(input: { title: string; body: string; target: any; scheduledAt?: any }): Promise<{ id: string }>;
   update(id: string, patch: any): Promise<void>;
@@ -35,19 +45,20 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
   constructor(private db: Firestore) {}
 
   async create(input: { title: string; body: string; target: any; scheduledAt?: any }) {
-    const ref = await addDoc(collection(this.db, COLLECTIONS.NOTIFICATIONS), {
+    const payload: NotificationRecord = {
       title: (input.title ?? "").trim(),
       body: (input.body ?? "").trim(),
       target: input.target ?? null,
       scheduledAt: input.scheduledAt ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    const ref = await addDoc(collection(this.db, COLLECTIONS.NOTIFICATIONS), payload);
     return { id: ref.id };
   }
 
   async update(id: string, patch: any) {
-    const toUpdate: Record<string, any> = { updatedAt: serverTimestamp() };
+    const toUpdate: Partial<NotificationRecord> = { updatedAt: serverTimestamp() };
     if (typeof patch.title === "string") toUpdate.title = patch.title.trim();
     if (typeof patch.body === "string") toUpdate.body = patch.body.trim();
     if (patch.target !== undefined) toUpdate.target = patch.target ?? null;
@@ -62,8 +73,12 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
   async fetchCampaignOptions() {
     const snap = await getDocs(collection(this.db, COLLECTIONS.DONATIONS));
     return snap.docs.map((d) => {
-      const data = d.data() as any;
-      return { id: d.id, name: data?.name ?? "(İsimsiz)", status: data?.status ?? "" };
+      const data = d.data() as { name?: string; status?: string } | undefined;
+      return {
+        id: d.id,
+        name: data?.name ?? "(İsimsiz)",
+        status: data?.status ?? "",
+      };
     });
   }
 
@@ -76,7 +91,13 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
     );
     return onSnapshot(
       qy,
-      (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }))),
+      (snap) => {
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as NotificationRecord),
+        }));
+        cb(rows as any[]);
+      },
       (err) => {
         console.error("[NotificationsRepo.listenRealtime] error:", err);
         cb([]);
@@ -93,13 +114,18 @@ export class FirestoreNotificationsRepo implements INotificationsRepo {
     );
     if (cursor) qy = query(qy, startAfter(cursor));
     const snap = await getDocs(qy);
-    const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const items = snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as NotificationRecord),
+    }));
     const nextCursor = snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : undefined;
-    return { items, cursor: nextCursor };
+    return { items: items as any[], cursor: nextCursor };
   }
 
   async getById(id: string) {
     const s = await getDoc(doc(this.db, COLLECTIONS.NOTIFICATIONS, id));
-    return s.exists() ? { id: s.id, ...(s.data() as any) } : null;
+    if (!s.exists()) return null;
+    const data = s.data() as NotificationRecord;
+    return { id: s.id, ...data } as any;
   }
 }

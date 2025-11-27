@@ -12,6 +12,11 @@ export interface IUserStatsRepo {
   getGlobalTotalUsers(): Promise<number>;
 }
 
+interface UserStatsDoc {
+  totalUsers?: number;
+  monthlyUsers?: Record<string, unknown>;
+}
+
 /**
  * Beklenen veri yapısı (önerilen):
  * userStats/global belgesinde:
@@ -32,11 +37,14 @@ export class FirestoreUserStatsRepo implements IUserStatsRepo {
     const ref = doc(this.db, COLLECTIONS.USER_STATS, "global");
     const snap = await getDoc(ref);
 
-    const monthlyUsers = snap.exists() ? ((snap.data() as any)?.monthlyUsers ?? {}) : {};
+    const stats = snap.exists() ? (snap.data() as UserStatsDoc) : undefined;
+    const monthlyUsers = stats?.monthlyUsers ?? {};
+
     // Eksik aylar için 0 döndür
     const rows: MonthlyUserCount[] = MONTHS_TR.map((label, i) => {
       const key = `${year}-${String(i + 1).padStart(2, "0")}`;
-      const count = Number(monthlyUsers[key] ?? 0);
+      const raw = monthlyUsers[key];
+      const count = Number(raw ?? 0);
       return { month: label, count: Number.isFinite(count) ? count : 0 };
     });
 
@@ -47,7 +55,8 @@ export class FirestoreUserStatsRepo implements IUserStatsRepo {
     const ref = doc(this.db, COLLECTIONS.USER_STATS, "global");
     const snap = await getDoc(ref);
     if (!snap.exists()) return 0;
-    const total = Number((snap.data() as any)?.totalUsers ?? 0);
+    const data = snap.data() as UserStatsDoc;
+    const total = Number(data.totalUsers ?? 0);
     return Number.isFinite(total) ? total : 0;
-    }
+  }
 }

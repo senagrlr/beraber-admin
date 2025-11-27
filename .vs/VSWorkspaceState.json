@@ -2,15 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\components",
-    "\\src\\layouts",
+    "\\src\\data\\repositories",
+    "\\src\\data\\services",
+    "\\src\\domain\\community",
+    "\\src\\domain\\donations",
+    "\\src\\domain\\users",
+    "\\src\\hooks",
     "\\src\\pages",
-    "\\src\\pages\\Community",
-    "\\src\\pages\\Dashboard",
-    "\\src\\pages\\Donations",
-    "\\src\\pages\\Notifications",
     "\\src\\pages\\Reports"
   ],
-  "SelectedNode": "\\src\\constants\\dimensions.ts",
+  "SelectedNode": "\\src\\pages\\Community\\Topluluk.tsx",
   "PreviewInSolutionExplorer": false
 }

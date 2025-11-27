@@ -15,9 +15,8 @@ import {
 import { donationsService, auth } from "@/data/container";
 import { useNotifier } from "../../contexts/NotificationContext";
 import { DONATION_CATEGORIES } from "@/domain/donations/donation.schema";
-import { ALLOWED_IMAGE_MIME, IMAGE_MAX_BYTES } from "@/constants/validation";
-
-type AllowedMime = (typeof ALLOWED_IMAGE_MIME)[number];
+import { ALLOWED_IMAGE_MIME } from "@/constants/validation";
+import { useImageValidation } from "@/hooks/useImageValidation";
 
 export default function BagisEkle() {
   const [donationName, setDonationName] = useState("");
@@ -34,6 +33,7 @@ export default function BagisEkle() {
   const [saving, setSaving] = useState(false);
 
   const notifier = useNotifier();
+  const { validateImage } = useImageValidation();
 
   // ObjectURL temizliği
   useEffect(() => {
@@ -61,7 +61,10 @@ export default function BagisEkle() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
+
+    // Dosya seçilmediyse her şeyi temizle
     if (!f) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setFile(null);
       setPreviewUrl("");
       setSelectedFileName("");
@@ -69,27 +72,18 @@ export default function BagisEkle() {
       return;
     }
 
-    // MIME kontrolü
-    const mime = f.type as AllowedMime;
-    if (!ALLOWED_IMAGE_MIME.includes(mime)) {
-      setImgError("Sadece JPG, PNG veya WEBP görsel yükleyebilirsin.");
+    // Ortak doğrulama
+    const err = validateImage(f);
+    if (err) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setFile(null);
       setPreviewUrl("");
       setSelectedFileName("");
+      setImgError(err);
       return;
     }
 
-    // Boyut kontrolü
-    if (f.size > IMAGE_MAX_BYTES) {
-      const mb = (IMAGE_MAX_BYTES / (1024 * 1024)).toFixed(1);
-      setImgError(`Görsel en fazla ${mb} MB olabilir.`);
-      setFile(null);
-      setPreviewUrl("");
-      setSelectedFileName("");
-      return;
-    }
-
-    // Her yeni seçimde eski preview URL'ini temizle
+    // Önceki preview URL'ini temizle
     if (previewUrl) URL.revokeObjectURL(previewUrl);
 
     setFile(f);
@@ -169,7 +163,12 @@ export default function BagisEkle() {
             }}
           >
             Görsel Seç
-            <input type="file" accept={ALLOWED_IMAGE_MIME.join(",")} hidden onChange={handleFileChange} />
+            <input
+              type="file"
+              accept={ALLOWED_IMAGE_MIME.join(",")}
+              hidden
+              onChange={handleFileChange}
+            />
           </Button>
 
           <Typography variant="body2" sx={{ color: "#5B3B3B" }}>
@@ -211,7 +210,9 @@ export default function BagisEkle() {
         </Box>
 
         {!!imgError && (
-          <Typography sx={{ color: "#a33", fontSize: 12, mt: -1, mb: 1.5 }}>{imgError}</Typography>
+          <Typography sx={{ color: "#a33", fontSize: 12, mt: -1, mb: 1.5 }}>
+            {imgError}
+          </Typography>
         )}
 
         <FormControl fullWidth sx={{ mb: 2 }}>

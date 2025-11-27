@@ -1,4 +1,4 @@
-// src/pages/Notifications/SonBildirimler.tsx
+// src/pages/Notifications/SonBildirimler.tsx 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Card, CardContent, Typography, TableContainer, Table, TableHead, TableRow,
@@ -8,6 +8,10 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { notificationsService } from "@/data/container";
+import {
+  RECENT_NOTIFICATIONS_LIMIT,
+  NOTIFICATIONS_PAGE_SIZE,
+} from "@/constants/limits";
 
 /** UI’da ihtiyaç duyduğumuz minimal tip */
 type NotificationTarget =
@@ -57,19 +61,22 @@ export default function SonBildirimler() {
     };
   }, []);
 
-  // realtime (son 20) — StrictMode çift mount korumalı
+  // realtime (son X bildirim) — StrictMode çift mount korumalı
   useEffect(() => {
     if (mountedOnce.current) return;
     mountedOnce.current = true;
 
-    const off = notificationsService.listenRecent(20, (live) => {
-      setRows((prev) => {
-        const map = new Map<string, UINotification>();
-        for (const it of live as UINotification[]) map.set(it.id, it);
-        for (const it of prev) if (!map.has(it.id)) map.set(it.id, it);
-        return Array.from(map.values());
-      });
-    });
+    const off = notificationsService.listenRecent(
+      RECENT_NOTIFICATIONS_LIMIT,
+      (live) => {
+        setRows((prev) => {
+          const map = new Map<string, UINotification>();
+          for (const it of live as UINotification[]) map.set(it.id, it);
+          for (const it of prev) if (!map.has(it.id)) map.set(it.id, it);
+          return Array.from(map.values());
+        });
+      }
+    );
 
     // yeni oluşturulanda üstte göster (container.events varsa)
     const createdHandler = async (ev: Event) => {
@@ -81,16 +88,24 @@ export default function SonBildirimler() {
         try {
           const doc = await notificationsService.getById(id);
           if (doc) {
-            setRows((prev) => (prev.find((x) => x.id === id) ? prev : [doc as UINotification, ...prev]));
+            setRows((prev) =>
+              prev.find((x) => x.id === id) ? prev : [doc as UINotification, ...prev]
+            );
           }
         } catch {}
       }
     };
-    notificationsService.events?.addEventListener?.("created", createdHandler as EventListener);
+    notificationsService.events?.addEventListener?.(
+      "created",
+      createdHandler as EventListener
+    );
 
     return () => {
       off?.();
-      notificationsService.events?.removeEventListener?.("created", createdHandler as EventListener);
+      notificationsService.events?.removeEventListener?.(
+        "created",
+        createdHandler as EventListener
+      );
       mountedOnce.current = false;
     };
   }, []);
@@ -100,7 +115,10 @@ export default function SonBildirimler() {
     if (loading || !hasMore || !!error) return;
     setLoading(true);
     try {
-      const { items, cursor: c } = await notificationsService.fetchPage(20, cursor);
+      const { items, cursor: c } = await notificationsService.fetchPage(
+        NOTIFICATIONS_PAGE_SIZE,
+        cursor
+      );
       setRows((r) => {
         const map = new Map<string, UINotification>();
         for (const it of r) map.set(it.id, it);
@@ -185,6 +203,7 @@ export default function SonBildirimler() {
     await notificationsService.delete(id);
     setRows((r) => r.filter((x) => x.id !== id));
   };
+
 
   return (
     <Card sx={{ borderRadius: 3, boxShadow: "0 2px 10px rgba(0,0,0,0.05)", mt: 3 }}>
