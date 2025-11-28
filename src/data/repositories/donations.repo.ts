@@ -19,6 +19,7 @@ import {
   type Firestore,
   getCountFromServer,
   Timestamp,
+  arrayUnion, // ⬅️ eklendi
 } from "firebase/firestore";
 import {
   ref,
@@ -40,6 +41,8 @@ export interface DonationDoc {
   description?: string;
   status?: "active" | "completed" | "photo_pending" | "deleted" | string;
   photoUrl?: string;
+  /** Çoklu fotoğraflar için opsiyonel liste */
+  photos?: string[];
   createdBy?: string;
   createdAt?: any;
   updatedAt?: any;
@@ -167,7 +170,9 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
       firestorePatch.description = (patch.description ?? "").trim();
     }
 
+    // photoUrl bu metodla güncellenmez
     delete (firestorePatch as any).photoUrl;
+    delete (firestorePatch as any).photos;
 
     await updateDoc(doc(this.db, COLLECTIONS.DONATIONS, id), {
       ...firestorePatch,
@@ -176,8 +181,11 @@ export class FirestoreDonationsRepo implements IDonationsRepo {
   }
 
   async setPhotoUrl(id: string, url: string): Promise<void> {
+    const trimmed = url.trim();
     await updateDoc(doc(this.db, COLLECTIONS.DONATIONS, id), {
-      photoUrl: url.trim(),
+      photoUrl: trimmed,
+      // Çoklu foto desteği: her setPhotoUrl çağrısında listeye ekle
+      photos: arrayUnion(trimmed),
       updatedAt: serverTimestamp(),
     } as Partial<DonationDoc>);
   }

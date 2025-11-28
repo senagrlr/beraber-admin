@@ -94,12 +94,12 @@ export default function BeraberdeBuAy() {
         disabled={saving}
         sx={{
           mb: 2,
-          borderRadius: 3,
+          borderRadius: 999,
           textTransform: "none",
           fontWeight: 600,
         }}
       >
-        {fileName ? `Seçilen dosya: ${fileName}` : "Görsel ekle ( opsiyonel )"}
+        {fileName ? `Seçilen dosya: ${fileName}` : "Görsel seç ( zorunlu )"}
         <input
           type="file"
           hidden
@@ -129,7 +129,7 @@ export default function BeraberdeBuAy() {
           />
         ) : (
           <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
-            Görsel ekle
+            Görsel seç
             <br />
             <Typography component="span" color="#9f8e8a" fontSize={12}>
               Öneri: 500 × 500 piksel

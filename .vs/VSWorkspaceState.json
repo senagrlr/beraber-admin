@@ -2,15 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\data\\repositories",
-    "\\src\\data\\services",
-    "\\src\\domain\\community",
+    "\\src\\data",
+    "\\src\\domain",
     "\\src\\domain\\donations",
-    "\\src\\domain\\users",
-    "\\src\\hooks",
+    "\\src\\domain\\todos",
     "\\src\\pages",
-    "\\src\\pages\\Reports"
+    "\\src\\pages\\Community",
+    "\\src\\pages\\Notifications",
+    "\\src\\pages\\Settings"
   ],
-  "SelectedNode": "\\src\\pages\\Community\\Topluluk.tsx",
+  "SelectedNode": "\\src\\pages\\Donations\\BagisEkle.tsx",
   "PreviewInSolutionExplorer": false
 }

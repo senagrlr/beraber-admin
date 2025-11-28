@@ -36,6 +36,8 @@ export interface Donation {
   updatedAt?: Date;
   createdBy?: string;
   photoUrl?: string;
+  /** Çoklu foto desteği için (opsiyonel) */
+  photos?: string[];
 }
 
 export const DonationWriteSchema = z.object({

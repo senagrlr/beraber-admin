@@ -1,5 +1,10 @@
 // src/domain/donations/donation.mapper.ts
-import type { Donation, DonationWrite, DonationCategory, DonationStatus } from "./donation.schema";
+import type {
+  Donation,
+  DonationWrite,
+  DonationCategory,
+  DonationStatus,
+} from "./donation.schema";
 import { DONATION_CATEGORIES, DONATION_STATUSES } from "./donation.schema";
 
 /** Firestore Timestamp | string | number (seconds/ms) | Date -> Date */
@@ -46,6 +51,8 @@ export const toDonation = (id: string, doc: any): Donation => {
     updatedAt: toDate(doc?.updatedAt),
     createdBy: doc?.createdBy || undefined,
     photoUrl: doc?.photoUrl || undefined,
+    // Çoklu foto: Firestore'da photos array varsa domain'e aynen geçir
+    photos: Array.isArray(doc?.photos) ? (doc.photos as string[]) : undefined,
   };
 };
 

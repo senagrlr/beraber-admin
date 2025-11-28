@@ -160,6 +160,7 @@ export default function BagisEkle() {
               borderRadius: 999,
               px: 3,
               mb: 1,
+              fontWeight: 600,
             }}
           >
             Görsel Seç
@@ -200,7 +201,7 @@ export default function BagisEkle() {
             />
           ) : (
             <Typography color="#6A2A2B" fontWeight={700} textAlign="center">
-              Görsel seç (opsiyonel)
+              Görsel seç (zorunlu)
               <br />
               <Typography component="span" variant="body2" color="gray">
                 Örn: JPG, PNG veya WEBP
